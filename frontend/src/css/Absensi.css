@@ -1,0 +1,176 @@
+/* Gaya untuk kontainer */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+.container {
+  width: 90%;
+  margin: auto;
+  text-align: center;
+}
+
+/* Judul */
+h2,
+h3 {
+  margin: 0;
+  padding: 5px;
+}
+
+/* Gaya tabel */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+/* Gaya untuk header tabel */
+th {
+  background-color: #2c7ec4;
+  color: white;
+  padding: 8px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+/* Gaya untuk baris tabel */
+td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+/* Gaya untuk warna zebra */
+tbody tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #ffffff;
+}
+.container {
+  width: 100%;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+  min-width: 1200px;
+}
+
+.report-table th,
+.report-table td {
+  padding: 8px 12px;
+  text-align: center;
+  border: 1px solid #ddd;
+}
+
+.report-table th {
+  background-color: #2d6693;
+  color: #ffffff;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.report-table td {
+  font-weight: 400;
+}
+
+.modal-content {
+  max-width: 500px;
+  padding: 20px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.modal-content h2 {
+  margin-bottom: 20px;
+}
+
+.modal-content label {
+  font-weight: bold;
+}
+
+.modal-content select,
+.modal-content input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.modal-content button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background-color: #2d6693;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.modal-content button:hover {
+  background-color: #1c4863;
+}
+
+.report-table th:first-child,
+.report-table td:first-child {
+  width: 40px; /* Kolom No */
+}
+
+.report-table th:nth-child(2),
+.report-table td:nth-child(2) {
+  width: 200px; /* Kolom Nama */
+}
+
+.report-table th:nth-child(3),
+.report-table td:nth-child(3) {
+  width: 120px; /* Kolom NIP */
+}
+
+.report-table th:nth-last-child(-n + 4),
+.report-table td:nth-last-child(-n + 4) {
+  width: 80px; /* Kolom Jumlah H, S, I, A */
+}
+
+.report-table th,
+.report-table td {
+  min-width: 40px; /* Lebar minimal kolom tanggal */
+}
+
+.report-table th:nth-child(4),
+.report-table td:nth-child(4) {
+  background-color: #f4f4f4;
+  font-weight: bold;
+}
+
+.report-table th.red,
+.report-table td.red {
+  background-color: #ffdddd; /* Warna latar belakang merah untuk hari Minggu */
+}
+
+.title {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 2rem;
+}
+.sub-title {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1.5rem;
+}
+.sub2-title {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1.3rem;
+}
+.color {
+  color: black;
+}

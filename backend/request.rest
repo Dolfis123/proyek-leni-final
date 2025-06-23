@@ -1,0 +1,35 @@
+POST http://localhost:5000/api/auth/super-admin
+Content-Type: application/json
+
+{
+    "username": "superadmin",
+    "password": "12345",
+    "full_name": "Admin Utama Manokwari",
+    "email": "superadmin@manokwari.pn"
+}
+
+###
+POST http://localhost:5000/api/users
+Content-Type: application/json
+
+{
+    "username": "adminloket1",
+    "password": "123`",
+    "full_name": "Admin Loket 1",
+    "email": "admin1@manokwari.pn",
+    "role": "admin"
+}
+
+###
+POST http://localhost:5000/api/queue/request-otp
+Content-Type: application/json
+
+{
+    "service_id": 2,
+    "customer_name": "Budi Santoso",
+    "customer_email": "kdolfis@gmail.com",
+    "customer_phone_number": "081220499241"
+}
+
+###
+GET http://localhost:5000/api/queue/status/public
