@@ -1,8 +1,9 @@
 // src/pages/superadmin/QueueReportsPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // <<< PASTIKAN useRef DIIMPORT
 import DashboardLayout from '../../components/common/DashboardLayout'; // Layout dasar dashboard
 import { getQueueReport } from '../../api/queue'; // Fungsi API untuk mengambil laporan
 import { getAllServices } from '../../api/services'; // Fungsi API untuk mengambil daftar layanan (untuk filter)
+import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
 
 const QueueReportsPage = () => {
     // State untuk menyimpan data laporan yang diterima dari backend
@@ -11,75 +12,90 @@ const QueueReportsPage = () => {
     const [services, setServices] = useState([]);
     // State untuk indikator loading saat mengambil laporan
     const [loading, setLoading] = useState(false);
-    // State untuk pesan error jika pengambilan laporan gagal
-    const [error, setError] = useState('');
+    const [error, setError] = useState(''); // <<< AKTIFKAN KEMBALI BARIS INI!
 
     // State untuk parameter filter laporan
-    const [startDate, setStartDate] = useState('');     // Tanggal mulai filter
-    const [endDate, setEndDate] = useState('');         // Tanggal akhir filter
+    const [startDate, setStartDate] = useState('');     // Tanggal mulai filter (YYYY-MM-DD)
+    const [endDate, setEndDate] = useState('');         // Tanggal akhir filter (YYYY-MM-DD)
     const [selectedServiceId, setSelectedServiceId] = useState(''); // ID layanan yang dipilih untuk filter
+
+    const effectRan = useRef(false); // <<< PASTIKAN useRef ini ada untuk effectRan
 
     // --- useEffect: Mengambil Daftar Layanan untuk Dropdown Filter ---
     useEffect(() => {
-        const fetchServices = async () => {
+        const fetchServicesForFilter = async () => { 
             try {
-                // Mengambil semua layanan (termasuk yang tidak aktif) untuk opsi filter
-                const data = await getAllServices();
+                const data = await getAllServices(); // Mengambil semua layanan (termasuk yang tidak aktif)
                 setServices(data);
             } catch (err) {
                 console.error('Gagal mengambil daftar layanan untuk filter laporan:', err);
+                toast.error(err.response?.data?.message || 'Gagal memuat daftar layanan untuk filter laporan.'); 
             }
         };
-        fetchServices(); // Panggil fungsi saat komponen pertama kali dimuat
-    }, []); // Dependensi kosong, hanya berjalan sekali saat mount
+        fetchServicesForFilter(); 
+    }, []); 
 
     // --- Fungsi: Mengambil Data Laporan dari Backend ---
     const fetchReport = async () => {
         // Validasi: pastikan tanggal mulai dan akhir sudah dipilih
         if (!startDate || !endDate) {
-            setError('Mohon pilih tanggal mulai dan tanggal akhir.');
-            setReportData([]); // Kosongkan data laporan jika filter tidak lengkap
+            toast.warn('Mohon pilih tanggal mulai dan tanggal akhir.'); 
+            setReportData([]); 
             return;
         }
 
-        setLoading(true); // Mulai indikator loading
-        setError('');     // Reset pesan error
+        setLoading(true); 
+        setError(''); // Reset error state
 
         try {
-            // Memanggil API laporan dengan parameter filter
-            // selectedServiceId diubah menjadi null jika string kosong agar backend tidak memfilter
             const data = await getQueueReport(startDate, endDate, selectedServiceId || null);
-            setReportData(data); // Simpan data laporan ke state
+            setReportData(data); 
             console.log('Data laporan berhasil diambil:', data);
+            toast.success('Data laporan berhasil dimuat!'); 
         } catch (err) {
             console.error('Gagal mengambil laporan:', err);
-            // Menampilkan pesan error dari respons API jika ada, atau pesan default
-            setError(err.response?.data?.message || err.message || 'Gagal memuat data laporan.');
+            const msg = err.response?.data?.message || err.message || 'Gagal memuat data laporan.';
+            setError(msg); // Set error state, meskipun toast juga akan ditampilkan
+            toast.error(msg); 
         } finally {
-            setLoading(false); // Hentikan indikator loading
+            setLoading(false); 
         }
     };
 
     // --- useEffect: Mengatur Rentang Tanggal Default dan Memicu Pengambilan Laporan ---
     useEffect(() => {
-        const today = new Date(); // Tanggal hari ini
+        const today = new Date();
         const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6); // Mengatur tanggal 6 hari ke belakang (untuk total 7 hari)
+        sevenDaysAgo.setDate(today.getDate() - 6); 
 
-        // Mengatur tanggal akhir dan tanggal mulai dalam format YYYY-MM-DD
         setEndDate(today.toISOString().slice(0, 10)); 
         setStartDate(sevenDaysAgo.toISOString().slice(0, 10)); 
-    }, []); // Efek ini hanya berjalan sekali saat komponen di-mount untuk set tanggal default
+    }, []); 
 
     // --- useEffect: Memicu Pengambilan Laporan Saat Filter Berubah ---
     useEffect(() => {
-        // Panggil `fetchReport` setiap kali `startDate`, `endDate`, atau `selectedServiceId` berubah
-        // dan pastikan kedua tanggal sudah terisi
-        if (startDate && endDate) { 
-            fetchReport();
-        }
-    }, [startDate, endDate, selectedServiceId]); // Dependensi: trigger ulang saat state ini berubah
+        // DEBUGGING: Log setiap kali useEffect ini dieksekusi
+        console.log('[QueueReportsPage] useEffect (fetchReport) triggered');
 
+        // Pola untuk menjalankan fetchReport hanya sekali pada initial load,
+        // dan setiap kali filter berubah setelah itu.
+        if (effectRan.current === false) {
+            effectRan.current = true; 
+            // Panggil fetchReport di sini untuk initial load
+            if (startDate && endDate) { // Pastikan tanggal sudah diset oleh useEffect sebelumnya
+                fetchReport();
+            }
+        } else {
+            // Jika sudah bukan initial mount (filter berubah)
+            if (startDate && endDate) { 
+                fetchReport();
+            }
+        }
+    }, [startDate, endDate, selectedServiceId]); 
+
+
+    // DEBUGGING: Log setiap kali komponen dirender
+    console.log('[QueueReportsPage] Component Render');
 
     return (
         <DashboardLayout title="Queue Reports & Analytics">
@@ -126,20 +142,11 @@ const QueueReportsPage = () => {
                         </select>
                     </div>
                 </div>
-                {/* Tombol Generate Report (Sekarang otomatis setelah filter dipilih, tapi bisa diaktifkan jika perlu tombol manual) */}
-                {/* Anda bisa mengaktifkan tombol ini jika ingin laporan tidak otomatis ter-generate setiap perubahan filter */}
-                {/* <button
-                    onClick={fetchReport}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200"
-                    disabled={loading}
-                >
-                    {loading ? 'Memuat Laporan...' : 'Generate Laporan'}
-                </button> */}
             </div>
 
             {/* Area Pesan (Loading, Error) */}
             {loading && <p className="text-blue-500 text-center">Memuat data laporan...</p>}
-            {error && <p className="text-red-500 text-center">{error}</p>}
+            {error && <p className="text-red-500 text-center">{error}</p>} {/* <<< Pastikan ini tetap ada untuk menampilkan error */}
 
             {/* Tampilan Tabel Laporan */}
             {!loading && !error && reportData.length > 0 ? (
@@ -159,7 +166,7 @@ const QueueReportsPage = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rata-rata Waktu Pelayanan (menit)</th>
                                 </tr>
                             </thead>
-                       <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white divide-y divide-gray-200">
                                 {reportData.map((row, index) => (
                                     <tr key={index}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{new Date(row.date).toLocaleDateString('id-ID')}</td>
@@ -168,7 +175,6 @@ const QueueReportsPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.completed_queues}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.missed_queues}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.on_hold_queues}</td>
-                                        {/* PERBAIKAN DI SINI: Konversi ke Number() sebelum toFixed */}
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {row.avg_waiting_time_minutes !== null && row.avg_waiting_time_minutes !== undefined 
                                                 ? Number(row.avg_waiting_time_minutes).toFixed(2) 
@@ -187,7 +193,7 @@ const QueueReportsPage = () => {
                 </div>
             ) : (
                 // Pesan jika tidak ada data laporan ditemukan atau filter belum lengkap
-                !loading && !error && (
+                !loading && !error && ( // <<< Pastikan error juga dicek di sini
                     <p className="text-center text-gray-600 mt-8">
                         {startDate && endDate ? 'Tidak ditemukan data laporan untuk rentang tanggal dan filter yang dipilih.' : 'Mohon pilih tanggal mulai dan tanggal akhir untuk membuat laporan.'}
                     </p>

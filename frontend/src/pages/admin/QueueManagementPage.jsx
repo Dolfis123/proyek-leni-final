@@ -1,162 +1,198 @@
 // src/pages/admin/QueueManagementPage.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react'; // <<< PASTIKAN useRef DIIMPORT
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { getAllServices } from '../../api/services'; // Untuk mendapatkan daftar layanan
 import { getQueuesForAdmin, callNextQueue, markQueueStatus, recallLastCalledQueue } from '../../api/queue'; // API antrian admin
 import socket from '../../api/socket'; // Socket.IO client
 import { getCurrentUser } from '../../api/auth'; // Untuk mendapatkan info user (adminId)
+import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
 
 const QueueManagementPage = () => {
     const currentUser = getCurrentUser(); // Admin yang sedang login
-    const [services, setServices] = useState([]);
+    const [services, setServices] = useState([]); // Daftar layanan yang tersedia
     const [selectedServiceId, setSelectedServiceId] = useState(''); // ID layanan/loket yang dipilih admin
-    const [currentCallingQueue, setCurrentCallingQueue] = useState(null);
-    const [waitingQueues, setWaitingQueues] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [actionLoading, setActionLoading] = useState(false); // Loading state untuk tombol aksi
+    const [currentCallingQueue, setCurrentCallingQueue] = useState(null); // Antrian yang sedang dipanggil
+    const [waitingQueues, setWaitingQueues] = useState([]); // Daftar antrian yang menunggu
+    const [loading, setLoading] = useState(true); // Indikator loading data awal
+    // const [error, setError] = useState(''); // <<< DIHAPUS, diganti toast.error
+    const [actionLoading, setActionLoading] = useState(false); // Loading state untuk tombol aksi (panggil, selesai, dll.)
 
-    // Fetch daftar layanan saat komponen dimuat
+    const initialFetchRan = useRef(false); // <<< BARU: useRef untuk melacak eksekusi fetchServices pertama kali
+
+    // --- Fetch daftar layanan saat komponen dimuat ---
+    // Ini adalah fetch awal untuk mengisi dropdown layanan
     useEffect(() => {
         const fetchServices = async () => {
+            setLoading(true);
             try {
-                const data = await getAllServices(); // Ini akan mendapatkan semua layanan (aktif/non-aktif)
+                const data = await getAllServices();
                 setServices(data);
                 if (data.length > 0) {
                     // Set layanan pertama sebagai default jika belum ada yang dipilih
                     setSelectedServiceId(data[0].id);
                 }
+                toast.success('Daftar layanan berhasil dimuat!'); // <<< BARU: Toast sukses
             } catch (err) {
-                console.error('Failed to fetch services for admin:', err);
-                setError('Failed to load services for queue management.');
+                console.error('Gagal mengambil layanan untuk admin:', err);
+                const msg = err.response?.data?.message || 'Gagal memuat layanan untuk manajemen antrian.';
+                toast.error(msg); // <<< BARU: Toast error
             } finally {
                 setLoading(false);
             }
         };
         fetchServices();
-    }, []);
+    }, []); // Dependensi kosong, hanya berjalan sekali saat mount
 
-    // Fetch antrian untuk layanan yang dipilih
-    // Menggunakan useCallback agar tidak dibuat ulang setiap render
+    // --- Fungsi: Mengambil Antrian untuk Layanan yang Dipilih ---
+    // Menggunakan useCallback agar fungsi ini stabil dan tidak dibuat ulang setiap render
     const fetchQueues = useCallback(async (serviceId) => {
-        if (!serviceId) return; // Jangan fetch jika belum ada layanan terpilih
+        if (!serviceId) {
+            setCurrentCallingQueue(null);
+            setWaitingQueues([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
-        setError('');
+        // setError(''); // Dihapus
         try {
             const data = await getQueuesForAdmin(serviceId);
             setCurrentCallingQueue(data.currentCalling);
             setWaitingQueues(data.waitingQueues);
-            console.log('Fetched queues for service', serviceId, ':', data);
+            console.log(`[Admin QM] Fetched queues for service ID ${serviceId}:`, data); // DEBUGGING
         } catch (err) {
-            console.error('Failed to fetch queues for admin:', err);
-            setError(err.message || 'Failed to load queues for this service.');
+            console.error('[Admin QM] Gagal mengambil antrian untuk admin:', err);
+            const msg = err.message || 'Gagal memuat antrian untuk layanan ini.';
+            toast.error(msg); // <<< BARU: Toast error
+            // setError(msg); // Jika ingin menampilkan error inline
         } finally {
             setLoading(false);
         }
-    }, []); // Dependensi kosong karena tidak ada dari luar
+    }, []); // Dependensi kosong karena fungsi ini hanya bergantung pada serviceId yang diberikan
 
-    // Effect untuk fetch antrian saat serviceId berubah
+    // --- useEffect: Memicu Pengambilan Antrian Saat Layanan Dipilih ---
     useEffect(() => {
-        if (selectedServiceId) {
+        // DEBUGGING: Log setiap kali useEffect ini dipicu
+        console.log('[QueueManagementPage] useEffect (fetchQueues) triggered for selectedServiceId:', selectedServiceId);
+
+        // Gunakan initialFetchRan untuk memastikan fetchQueues hanya dijalankan sekali secara otomatis
+        // pada saat mount dan selectedServiceId pertama kali diset.
+        // Setelah itu, setiap perubahan selectedServiceId akan memicu fetchQueues seperti biasa.
+        if (initialFetchRan.current === false && selectedServiceId) {
+            fetchQueues(selectedServiceId);
+            initialFetchRan.current = true;
+        } else if (selectedServiceId) { // Jika sudah bukan initial fetch, panggil fetchQueues saat serviceId berubah
             fetchQueues(selectedServiceId);
         }
-    }, [selectedServiceId, fetchQueues]); // Re-fetch jika serviceId atau fetchQueues berubah
+    }, [selectedServiceId, fetchQueues]); 
 
-    // Socket.IO for real-time updates
+    // --- useEffect: Mendengarkan Update Real-time dari Socket.IO ---
     useEffect(() => {
-        // Event listener untuk update antrian (dari backend)
+        // Event listener untuk update antrian dari backend
         socket.on('queue_update', (data) => {
-            console.log('Received real-time queue update for admin:', data);
-            // Data yang diterima dari socket adalah format publicStatus.
-            // Kita perlu menyaringnya untuk mendapatkan data spesifik layanan yang dipilih admin.
-            const updatedService = data.find(s => s.id === selectedServiceId); // Cari layanan yang cocok ID-nya
-            if (updatedService) {
-                // Untuk admin dashboard, kita perlu data currentCalling dan waitingQueues
-                // Ini berarti backend perlu mengirim format berbeda untuk admin update, atau
-                // frontend harus memproses publicStatus yang diterima menjadi format admin
-                // Simplifikasi: Kita panggil ulang fetchQueues
-                fetchQueues(selectedServiceId); // <--- INI SOLUSI PALING MUDAH UNTUK SEMENTARA
+            console.log('Menerima update antrian real-time untuk admin:', data);
+            // Ketika ada update dari socket, panggil ulang fetchQueues untuk mendapatkan data terbaru
+            // Ini adalah cara sederhana untuk refresh UI admin secara real-time
+            if (selectedServiceId) { // Pastikan ada layanan yang dipilih sebelum refresh
+                fetchQueues(selectedServiceId); 
+                toast.info('Status antrian diperbarui secara real-time!'); // <<< BARU: Toast info
             }
         });
 
+        // Cleanup function: Hentikan mendengarkan event saat komponen di-unmount
         return () => {
             socket.off('queue_update');
         };
     }, [selectedServiceId, fetchQueues]); // Re-subscribe jika layanan berubah
 
-    // Handle Call Next Queue
+    // --- Handler: Memanggil Antrian Berikutnya ---
     const handleCallNextQueue = async () => {
         if (!selectedServiceId) {
-            alert('Please select a service first.');
+            toast.warn('Mohon pilih layanan terlebih dahulu.'); // <<< BARU: Toast warn
             return;
         }
-        setActionLoading(true);
-        setError('');
+        setActionLoading(true); // Mulai loading tombol aksi
+        // setError(''); // Dihapus
         try {
             await callNextQueue(selectedServiceId);
-            await fetchQueues(selectedServiceId); // Refresh setelah aksi
-            console.log('Next queue called.');
+            toast.success('Antrian berikutnya berhasil dipanggil!'); // <<< BARU: Toast sukses
+            await fetchQueues(selectedServiceId); // Refresh UI setelah aksi
         } catch (err) {
-            console.error('Failed to call next queue:', err);
-            setError(err.message || 'Failed to call next queue.');
+            console.error('Gagal memanggil antrian berikutnya:', err);
+            const msg = err.message || 'Gagal memanggil antrian berikutnya.';
+            toast.error(msg); // <<< BARU: Toast error
+            // setError(msg); // Jika ingin menampilkan error inline
         } finally {
-            setActionLoading(false);
+            setActionLoading(false); // Hentikan loading
         }
     };
 
-    // Handle Mark Queue Status (Completed, Missed, On Hold)
+    // --- Handler: Menandai Status Antrian (Selesai, Terlewat, Ditunda) ---
     const handleMarkQueueStatus = async (queueId, status) => {
-        if (!window.confirm(`Are you sure you want to mark this queue as "${status}"?`)) {
+        if (!currentCallingQueue) { // Pastikan ada antrian yang sedang dipanggil
+             toast.warn('Tidak ada antrian yang sedang dipanggil untuk ditandai.');
+             return;
+        }
+        if (!window.confirm(`Apakah Anda yakin ingin menandai antrian ini sebagai "${status}"?`)) {
             return;
         }
         setActionLoading(true);
-        setError('');
+        // setError(''); // Dihapus
         try {
             await markQueueStatus(queueId, status);
-            await fetchQueues(selectedServiceId); // Refresh setelah aksi
-            console.log(`Queue ${queueId} marked as ${status}.`);
+            toast.success(`Antrian berhasil ditandai sebagai ${status.replace('_', ' ')}.`); // <<< BARU: Toast sukses
+            await fetchQueues(selectedServiceId); // Refresh UI setelah aksi
         } catch (err) {
-            console.error(`Failed to mark queue as ${status}:`, err);
-            setError(err.message || `Failed to mark queue as ${status}.`);
+            console.error(`Gagal menandai antrian sebagai ${status}:`, err);
+            const msg = err.message || `Gagal menandai antrian sebagai ${status}.`;
+            toast.error(msg); // <<< BARU: Toast error
+            // setError(msg); // Jika ingin menampilkan error inline
         } finally {
             setActionLoading(false);
         }
     };
 
-    // Handle Recall Last Called Queue
+    // --- Handler: Memanggil Ulang Antrian Terakhir ---
     const handleRecallLastCalledQueue = async () => {
         if (!selectedServiceId) {
-            alert('Please select a service first.');
+            toast.warn('Mohon pilih layanan terlebih dahulu.');
+            return;
+        }
+        if (!currentCallingQueue) {
+            toast.warn('Tidak ada antrian yang sedang dipanggil untuk dipanggil ulang.');
             return;
         }
         setActionLoading(true);
-        setError('');
+        // setError(''); // Dihapus
         try {
             await recallLastCalledQueue(selectedServiceId);
-            await fetchQueues(selectedServiceId); // Refresh setelah aksi
-            console.log('Last called queue recalled.');
+            toast.success('Antrian berhasil dipanggil ulang!'); // <<< BARU: Toast sukses
+            await fetchQueues(selectedServiceId); // Refresh UI setelah aksi
         } catch (err) {
-            console.error('Failed to recall last called queue:', err);
-            setError(err.message || 'Failed to recall last called queue.');
+            console.error('Gagal memanggil ulang antrian terakhir:', err);
+            const msg = err.message || 'Gagal memanggil ulang antrian terakhir.';
+            toast.error(msg); // <<< BARU: Toast error
+            // setError(msg); // Jika ingin menampilkan error inline
         } finally {
             setActionLoading(false);
         }
     };
 
+    // --- Render Komponen ---
     return (
         <DashboardLayout title="Queue Management">
+            {/* Bagian Pemilihan Layanan */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Select Service / Loket</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Pilih Layanan / Loket</h2>
                 <div className="flex items-center space-x-4">
                     <label htmlFor="service-select" className="block text-sm font-medium text-gray-700">Pilih Layanan:</label>
                     <select
                         id="service-select"
                         value={selectedServiceId}
-                        onChange={(e) => setSelectedServiceId(Number(e.target.value))}
+                        onChange={(e) => setSelectedServiceId(Number(e.target.value))} // Konversi ke Number
                         className="mt-1 block w-full md:w-1/2 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     >
-                        {loading && <option value="">Loading services...</option>}
-                        {!loading && services.length === 0 && <option value="">No services available</option>}
+                        {loading && <option value="">Memuat layanan...</option>}
+                        {!loading && services.length === 0 && <option value="">Tidak ada layanan tersedia</option>}
                         {!loading && services.length > 0 && (
                             <>
                                 <option value="">-- Pilih Layanan --</option>
@@ -171,14 +207,16 @@ const QueueManagementPage = () => {
                 </div>
             </div>
 
-            {selectedServiceId && (
+            {/* Tampilan Manajemen Antrian Setelah Layanan Dipilih */}
+            {selectedServiceId ? (
                 <>
-                    {loading && <p className="text-blue-500 text-center">Loading queues...</p>}
-                    {error && <p className="text-red-500 text-center">{error}</p>}
-                    {actionLoading && <p className="text-indigo-500 text-center">Processing action...</p>}
+                    {loading && <p className="text-blue-500 text-center">Memuat antrian...</p>}
+                    {/* Pesan error global dari fetchQueues tidak lagi ditampilkan di sini */}
+                    {/* {error && <p className="text-red-500 text-center">{error}</p>} */}
+                    {actionLoading && <p className="text-indigo-500 text-center">Memproses aksi...</p>}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        {/* Current Calling Queue */}
+                        {/* Antrian Sedang Dipanggil */}
                         <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
                             <h3 className="text-lg font-semibold text-gray-700 mb-4">Sedang Dipanggil</h3>
                             <div className="text-center">
@@ -223,12 +261,12 @@ const QueueManagementPage = () => {
                             </div>
                         </div>
 
-                        {/* Control Buttons */}
+                        {/* Tombol Aksi Utama */}
                         <div className="bg-white p-6 rounded-lg shadow-md flex flex-col justify-center items-center">
                             <h3 className="text-lg font-semibold text-gray-700 mb-4">Aksi Antrian</h3>
                             <button
                                 onClick={handleCallNextQueue}
-                                disabled={actionLoading || waitingQueues.length === 0}
+                                disabled={actionLoading || waitingQueues.length === 0} // Nonaktif jika tidak ada antrian menunggu
                                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 text-xl rounded-lg shadow-lg focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed transform transition-transform duration-150 hover:scale-105"
                             >
                                 {actionLoading ? 'Memanggil...' : 'Panggil Antrian Berikutnya'}
@@ -237,7 +275,7 @@ const QueueManagementPage = () => {
                         </div>
                     </div>
 
-                    {/* Waiting Queues List */}
+                    {/* Daftar Antrian Menunggu */}
                     <div className="bg-white p-6 rounded-lg shadow-md">
                         <h3 className="text-xl font-semibold text-gray-800 mb-4">Antrian Menunggu ({waitingQueues.length})</h3>
                         {waitingQueues.length === 0 ? (
@@ -278,7 +316,6 @@ const QueueManagementPage = () => {
                                                     >
                                                         Tunda
                                                     </button>
-                                                    {/* Admin juga bisa memanggil spesifik, tapi CallNext lebih umum */}
                                                 </td>
                                             </tr>
                                         ))}
@@ -288,9 +325,10 @@ const QueueManagementPage = () => {
                         )}
                     </div>
                 </>
-            )}
-            {!selectedServiceId && !loading && (
-                <p className="text-gray-600 text-center mt-8">Silakan pilih layanan untuk memulai manajemen antrian.</p>
+            ) : ( // Pesan jika belum ada layanan yang dipilih
+                !loading && ( // Hapus !error dari kondisi
+                    <p className="text-gray-600 text-center mt-8">Silakan pilih layanan untuk memulai manajemen antrian.</p>
+                )
             )}
         </DashboardLayout>
     );

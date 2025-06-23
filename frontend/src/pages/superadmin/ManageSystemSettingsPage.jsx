@@ -1,52 +1,85 @@
 // src/pages/superadmin/ManageSystemSettingsPage.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react'; // <<< TAMBAHKAN useRef
 import DashboardLayout from '../../components/common/DashboardLayout';
 import { getAllSettings, setSetting } from '../../api/system';
+import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
 
 const ManageSystemSettingsPage = () => {
     const [settings, setSettings] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    // const [error, setError] = useState(''); // <<< DIHAPUS
     const [isSaving, setIsSaving] = useState(false);
-    const [saveError, setSaveError] = useState('');
-    const [saveSuccess, setSaveSuccess] = useState(false);
+    // const [saveError, setSaveError] = useState(''); // <<< DIHAPUS
+    // const [saveSuccess, setSaveSuccess] = useState(false); // <<< DIHAPUS, diganti toast.success
+
+    const effectRan = useRef(false); // <<< BARU: useRef untuk melacak eksekusi useEffect
 
     const fetchSettings = async () => {
         setLoading(true);
-        setError('');
+        // setError(''); // <<< DIHAPUS
         try {
             const data = await getAllSettings();
             // Mengubah array objek menjadi objek dengan key-value untuk form
             const formattedSettings = {};
             data.forEach(setting => {
-                formattedSettings[setting.setting_key] = setting.setting_value;
+                // Konversi nilai boolean string "true"/"false" ke boolean asli
+                if (setting.setting_key.includes('active') || setting.setting_key.includes('is_')) {
+                    formattedSettings[setting.setting_key] = setting.setting_value === 'true' || setting.setting_value === true;
+                } else {
+                    formattedSettings[setting.setting_key] = setting.setting_value;
+                }
             });
             setSettings(formattedSettings);
+            return true; // Mengembalikan true jika fetch berhasil
         } catch (err) {
-            console.error('Failed to fetch settings:', err);
-            setError(err.message || 'Failed to load system settings.');
+            console.error('Gagal mengambil pengaturan:', err);
+            // setError(err.message || 'Gagal memuat pengaturan sistem.'); // <<< DIHAPUS
+            const msg = err.response?.data?.message || 'Gagal memuat pengaturan sistem.';
+            toast.error(msg); // <<< BARU: Toast error
+            return false; // Mengembalikan false jika fetch gagal
         } finally {
             setLoading(false);
         }
     };
 
+    // useEffect untuk memicu pengambilan data saat komponen dimuat
     useEffect(() => {
-        fetchSettings();
-    }, []);
+        // DEBUGGING: Log setiap kali useEffect dieksekusi
+        console.log('[ManageSystemSettingsPage] useEffect (loadSettings) triggered');
+
+        const loadSettings = async () => {
+            const success = await fetchSettings(); // Panggil fetchSettings
+            if (success) {
+                console.log('[ManageSystemSettingsPage] loadSettings successful, attempting to show toast'); // DEBUGGING
+                toast.success('Pengaturan sistem berhasil dimuat!'); // <<< BARU: Panggil toast di sini hanya jika sukses
+            }
+        };
+
+        // Menggunakan effectRan.current untuk memastikan loadSettings hanya dijalankan sekali per mount
+        if (effectRan.current === false) { 
+            loadSettings();
+            effectRan.current = true; 
+        }
+        
+        // Cleanup function
+        return () => {
+            console.log('[ManageSystemSettingsPage] useEffect cleanup triggered'); // DEBUGGING
+        };
+    }, []); 
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        const { name, value, type, checked } = e.target;
         setSettings(prev => ({
             ...prev,
-            [name]: value,
+            [name]: type === 'checkbox' ? checked : value,
         }));
     };
 
     const handleSaveSettings = async (e) => {
         e.preventDefault();
         setIsSaving(true);
-        setSaveError('');
-        setSaveSuccess(false);
+        // setSaveError(''); // <<< DIHAPUS
+        // setSaveSuccess(false); // <<< DIHAPUS
 
         try {
             // Iterasi semua setting dan kirim ke backend
@@ -54,15 +87,18 @@ const ManageSystemSettingsPage = () => {
                 if (Object.hasOwnProperty.call(settings, key)) {
                     const value = settings[key];
                     // Anda bisa menambahkan deskripsi default atau mengambil dari tempat lain
-                    await setSetting(key, value, `System setting for ${key}`);
+                    await setSetting(key, String(value), `System setting for ${key}`); // Pastikan nilai dikirim sebagai string
                 }
             }
-            setSaveSuccess(true);
-            setTimeout(() => setSaveSuccess(false), 3000); // Hilangkan notif setelah 3 detik
+            // setSaveSuccess(true); // <<< DIHAPUS
+            // setTimeout(() => setSaveSuccess(false), 3000); 
+            toast.success('Pengaturan sistem berhasil disimpan!'); // <<< BARU: Toast sukses
             console.log('Settings saved successfully!');
         } catch (err) {
-            console.error('Failed to save settings:', err);
-            setSaveError(err.message || 'Failed to save settings.');
+            console.error('Gagal menyimpan pengaturan:', err);
+            // setSaveError(err.message || 'Gagal menyimpan pengaturan.'); // <<< DIHAPUS
+            const msg = err.response?.data?.message || 'Gagal menyimpan pengaturan.';
+            toast.error(msg); // <<< BARU: Toast error
         } finally {
             setIsSaving(false);
         }
@@ -70,27 +106,32 @@ const ManageSystemSettingsPage = () => {
 
     // Ini adalah daftar kunci pengaturan yang ingin ditampilkan di UI
     const settingDefinitions = [
-        { key: 'monday_open_time', label: 'Monday Open Time', type: 'time', description: 'Format: HH:MM' },
-        { key: 'monday_close_time', label: 'Monday Close Time', type: 'time', description: 'Format: HH:MM' },
-        { key: 'monday_break_start_time', label: 'Monday Break Start', type: 'time', description: 'Format: HH:MM' },
-        { key: 'monday_break_end_time', label: 'Monday Break End', type: 'time', description: 'Format: HH:MM' },
-        { key: 'daily_reset_time', label: 'Daily Reset Time', type: 'time', description: 'Time to reset queues daily (e.g., 00:00 or 06:00)' },
-        { key: 'notification_threshold', label: 'Notification Threshold', type: 'number', description: 'Number of queues before customer gets "soon to be called" notification' },
+        { key: 'monday_open_time', label: 'Jam Buka Senin', type: 'time', description: 'Format: HH:MM' },
+        { key: 'monday_close_time', label: 'Jam Tutup Senin', type: 'time', description: 'Format: HH:MM' },
+        { key: 'monday_break_start_time', label: 'Mulai Istirahat Senin', type: 'time', description: 'Format: HH:MM' },
+        { key: 'monday_break_end_time', label: 'Akhir Istirahat Senin', type: 'time', description: 'Format: HH:MM' },
+        { key: 'daily_reset_time', label: 'Waktu Reset Harian', type: 'time', description: 'Waktu reset antrian setiap hari (misal: 00:00 atau 06:00)' },
+        { key: 'notification_threshold', label: 'Batas Notifikasi', type: 'number', description: 'Jumlah antrian sebelum pelanggan mendapat notifikasi "segera dipanggil"' },
         // Anda bisa menambahkan pengaturan lain di sini
-        // { key: 'global_is_active', label: 'System Active', type: 'checkbox', description: 'Overall system active/inactive' },
+        // { key: 'global_is_active', label: 'Sistem Aktif', type: 'checkbox', description: 'Status aktif/non-aktif keseluruhan sistem' },
     ];
+
+    // DEBUGGING: Log setiap kali komponen dirender
+    console.log('[ManageSystemSettingsPage] Component Render');
 
     return (
         <DashboardLayout title="System Settings">
             <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Manage Global System Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Kelola Pengaturan Sistem Global</h2>
 
-                {loading && <p className="text-blue-500 text-center">Loading settings...</p>}
-                {error && <p className="text-red-500 text-center">{error}</p>}
+                {loading && <p className="text-blue-500 text-center">Memuat pengaturan...</p>}
+                {/* Error global dari fetchSettings tidak lagi ditampilkan di sini, melainkan di toast */}
+                {/* {error && <p className="text-red-500 text-center">{error}</p>} */}
 
-                {!loading && !error && (
+                {!loading && (
                     <form onSubmit={handleSaveSettings} className="space-y-6">
-                        {saveError && (
+                        {/* Error atau sukses pesan yang lebih spesifik formulir, jika diperlukan. Diganti dengan toast. */}
+                        {/* {saveError && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                                 <span className="block sm:inline">{saveError}</span>
                             </div>
@@ -99,7 +140,7 @@ const ManageSystemSettingsPage = () => {
                             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
                                 <span className="block sm:inline">Settings saved successfully!</span>
                             </div>
-                        )}
+                        )} */}
 
                         {settingDefinitions.map(setting => (
                             <div key={setting.key} className="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
@@ -140,7 +181,7 @@ const ManageSystemSettingsPage = () => {
                                 className={`px-6 py-2 rounded-md font-semibold text-white ${isSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                                 disabled={isSaving}
                             >
-                                {isSaving ? 'Saving...' : 'Save Settings'}
+                                {isSaving ? 'Menyimpan...' : 'Simpan Pengaturan'}
                             </button>
                         </div>
                     </form>

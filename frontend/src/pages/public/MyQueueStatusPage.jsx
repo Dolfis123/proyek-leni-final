@@ -3,15 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom'; // Untuk mendapatkan query params dari URL
 import { getMyQueueStatus, requeueMissed } from '../../api/queue'; // Import API dari service
 import { Link } from 'react-router-dom'; // Untuk navigasi internal
+import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
 
 const MyQueueStatusPage = () => {
     const location = useLocation(); // Hook untuk mengakses objek lokasi (URL)
     const [email, setEmail] = useState(''); // State untuk email yang akan dicari
     const [queueStatus, setQueueStatus] = useState(null); // Menyimpan objek status antrian dari backend
     const [loading, setLoading] = useState(false); // Status loading saat mencari antrian
-    const [error, setError] = useState(''); // Pesan error yang ditampilkan
     const [actionLoading, setActionLoading] = useState(false); // Loading state untuk tombol aksi (misal: requeue)
-    const [successMessage, setSuccessMessage] = useState(''); // Pesan sukses setelah aksi
+    // const [error, setError] = useState(''); // <<< DIHAPUS, karena diganti toast.error
+    // const [successMessage, setSuccessMessage] = useState(''); // <<< DIHAPUS, karena diganti toast.success
 
     // --- useEffect: Mengambil Email dari URL Query Parameter ---
     // Akan berjalan saat komponen dimuat atau URL query berubah
@@ -29,19 +30,24 @@ const MyQueueStatusPage = () => {
         if (!currentEmail) return; // Jangan fetch jika email kosong
 
         setLoading(true); // Mulai loading
-        setError('');     // Reset error
-        setSuccessMessage(''); // Reset pesan sukses
+        // setError(''); // Dihapus, error akan ditampilkan melalui toast
+        // setSuccessMessage(''); // Dihapus, sukses akan ditampilkan melalui toast
 
         try {
             // Panggil API untuk mendapatkan status antrian pribadi
             const data = await getMyQueueStatus(currentEmail); 
-            // Data akan berisi: { message, queue, current_calling_number, queues_in_front, estimated_wait_time }
             setQueueStatus(data); // Simpan data ke state
+            // Jika berhasil menemukan antrian, tampilkan toast sukses
+            if (data && data.queue) {
+                toast.success(`Status antrian Anda (${data.queue.full_queue_number}) berhasil dimuat.`);
+            } else {
+                toast.info(`Tidak ditemukan antrian aktif untuk email "${currentEmail}" hari ini.`);
+            }
         } catch (err) {
             console.error('Gagal mengambil status antrian saya:', err);
             setQueueStatus(null); // Reset status jika ada error
-            // Tampilkan pesan error dari backend jika ada, atau pesan default
-            setError(err.response?.data?.message || err.message || 'Gagal memuat status antrian. Silakan coba lagi.');
+            // Tampilkan toast error jika gagal
+            toast.error(err.response?.data?.message || err.message || 'Gagal memuat status antrian. Silakan coba lagi.');
         } finally {
             setLoading(false); // Hentikan loading
         }
@@ -57,7 +63,7 @@ const MyQueueStatusPage = () => {
     const handleRequeue = async () => {
         // Validasi dasar
         if (!queueStatus?.queue?.id || !queueStatus?.queue?.service_id || queueStatus.queue.status !== 'missed') {
-            setError('Data antrian tidak valid untuk ambil ulang.');
+            toast.error('Data antrian tidak valid untuk ambil ulang.');
             return;
         }
         // Konfirmasi pengguna
@@ -66,8 +72,8 @@ const MyQueueStatusPage = () => {
         }
 
         setActionLoading(true); // Mulai loading untuk aksi
-        setError('');         // Reset error
-        setSuccessMessage(''); // Reset pesan sukses
+        // setError(''); // Dihapus
+        // setSuccessMessage(''); // Dihapus
         
         try {
             // Panggil API untuk mengambil ulang antrian
@@ -76,14 +82,13 @@ const MyQueueStatusPage = () => {
                 service_id: queueStatus.queue.service_id
             });
             
-            // Perbarui state queueStatus dengan informasi antrian baru
-            // Kita panggil ulang fetchQueueStatus untuk mendapatkan data terbaru dan akurat setelah requeue
+            // Setelah berhasil requeue, panggil ulang fetchQueueStatus untuk mendapatkan data terbaru dan akurat
             await fetchQueueStatus(email); 
-            setSuccessMessage(response.message || 'Antrian berhasil diambil ulang!'); // Tampilkan pesan sukses
+            toast.success(response.message || 'Antrian berhasil diambil ulang!'); // Tampilkan toast sukses
 
         } catch (err) {
             console.error('Gagal mengambil ulang antrian:', err);
-            setError(err.response?.data?.message || err.message || 'Gagal mengambil ulang antrian. Silakan coba lagi.');
+            toast.error(err.response?.data?.message || err.message || 'Gagal mengambil ulang antrian. Silakan coba lagi.');
         } finally {
             setActionLoading(false); // Hentikan loading
         }
@@ -94,17 +99,9 @@ const MyQueueStatusPage = () => {
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
                 <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Status Antrian Anda</h2>
                 
-                {/* Area Pesan (Error, Loading, Sukses) */}
-                {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                        <span className="block sm:inline">{error}</span>
-                    </div>
-                )}
-                {successMessage && (
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                        <span className="block sm:inline">{successMessage}</span>
-                    </div>
-                )}
+                {/* Area Pesan (Loading, Error, Sukses) kini ditangani oleh react-hot-toast, kecuali aksi loading */}
+                {/* {error && ( ... )} */}
+                {/* {successMessage && ( ... )} */}
                 {loading && <p className="text-blue-500 text-center mb-4">Mencari status antrian...</p>}
                 {actionLoading && <p className="text-indigo-500 text-center mb-4">Memproses permintaan...</p>}
 
@@ -134,11 +131,13 @@ const MyQueueStatusPage = () => {
                 </form>
 
                 {/* Tampilan Status Antrian */}
-                {!loading && !error && queueStatus && queueStatus.queue ? ( // Pastikan queueStatus dan queue tidak null
+                {/* Tampilkan jika tidak loading, tidak ada error (dari toast), dan ada data antrian */}
+                {!loading && !actionLoading && queueStatus && queueStatus.queue ? ( 
                     <div className="bg-white p-6 rounded-lg border border-gray-200 text-center shadow-md">
                         <p className="text-gray-700 text-lg mb-2">Nomor Antrian Anda:</p>
                         <p className="text-6xl font-extrabold text-blue-800 mb-4">{queueStatus.queue.full_queue_number}</p>
-                        <p className="text-xl text-gray-700">Layanan: <span className="font-semibold">{queueStatus.queue.service?.service_name || 'N/A'}</span></p> {/* Menggunakan optional chaining .service?.service_name */}
+                        {/* Menampilkan service_name menggunakan optional chaining karena service adalah relasi */}
+                        <p className="text-xl text-gray-700">Layanan: <span className="font-semibold">{queueStatus.queue.service?.service_name || 'N/A'}</span></p> 
                         <p className="text-xl text-gray-700 mb-4">Status: <span className={`font-semibold capitalize 
                             ${queueStatus.queue.status === 'calling' ? 'text-red-600' : 
                                 queueStatus.queue.status === 'waiting' ? 'text-blue-600' : 
@@ -148,7 +147,7 @@ const MyQueueStatusPage = () => {
                             </span>
                         </p>
                         
-                        {/* Tampilkan detail posisi jika statusnya relevan */}
+                        {/* Tampilkan detail posisi jika statusnya 'waiting' atau 'on_hold' */}
                         {['waiting', 'on_hold'].includes(queueStatus.queue.status) && (
                             <>
                                 <p className="text-gray-700 text-lg mt-4">Antrian di Depan: <span className="font-semibold">{queueStatus.queues_in_front}</span></p>
@@ -156,7 +155,8 @@ const MyQueueStatusPage = () => {
                                 <p className="text-gray-700 text-sm mt-2">Nomor Sedang Dipanggil: <span className="font-semibold">{queueStatus.current_calling_number}</span></p>
                             </>
                         )}
-                         {queueStatus.queue.status === 'calling' && (
+                        {/* Pesan spesifik berdasarkan status */}
+                        {queueStatus.queue.status === 'calling' && (
                             <p className="text-green-600 text-xl font-semibold mt-4">Silakan menuju loket sekarang!</p>
                         )}
                         {queueStatus.queue.status === 'completed' && (
@@ -180,7 +180,7 @@ const MyQueueStatusPage = () => {
                     </div>
                 ) : (
                     // Pesan jika tidak ada antrian ditemukan atau belum mencari
-                    !loading && !error && (
+                    !loading && !actionLoading && ( // Hapus !error dari kondisi
                         <p className="text-center text-gray-600">
                             {email ? `Tidak ditemukan antrian aktif untuk email "${email}" hari ini.` : 'Masukkan email Anda untuk melihat status antrian.'}
                         </p>

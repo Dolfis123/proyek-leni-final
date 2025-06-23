@@ -1,12 +1,14 @@
 // src/pages/public/QueueRegistrationPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Menggunakan Link dan useNavigate untuk navigasi
+import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
+
 import { 
-    getActiveServicesPublic, // Mengambil daftar layanan aktif
-    requestOtp,             // Meminta kode OTP
-    verifyOtpAndCreateQueue, // Memverifikasi OTP dan membuat antrian
-    getMyQueueStatus,       // Mengecek status antrian pengguna (untuk handle 'missed' atau 'active queue')
-    requeueMissed           // Mengambil ulang antrian yang terlewat
+    getActiveServicesPublic, 
+    requestOtp, 
+    verifyOtpAndCreateQueue, 
+    getMyQueueStatus, 
+    requeueMissed 
 } from '../../api/queue'; // Mengimpor fungsi-fungsi API untuk antrian
 
 const QueueRegistrationPage = () => {
@@ -27,208 +29,248 @@ const QueueRegistrationPage = () => {
         customer_name: '',
         customer_email: '',
         customer_phone_number: '',
-        service_id: '', // ID layanan yang dipilih, otomatis terisi saat handleSelectService
+        service_id: '', 
     });
 
     // State untuk input kode OTP oleh pengguna di Step 3
     const [otpCode, setOtpCode] = useState('');
     // State untuk menyimpan hasil akhir nomor antrian yang didapat setelah verifikasi berhasil
-    const [queueResult, setQueueResult] = useState(null); // Berisi { full_queue_number, service_name, ... }
+    const [queueResult, setQueueResult] = useState(null); 
 
-    // State untuk mengelola status loading dan error UI
+    // State untuk mengelola status loading UI
     const [loading, setLoading] = useState(false); // Indikator loading untuk seluruh proses form
-    const [error, setError] = useState(''); // Pesan error yang ditampilkan ke user
+    // const [error, setError] = useState(''); // <<< DIHAPUS, karena diganti toast.error
+    const [fieldErrors, setFieldErrors] = useState({}); // <<< BARU: State untuk error validasi per field
     const [otpSentMessage, setOtpSentMessage] = useState(''); // Pesan konfirmasi setelah OTP dikirim (e.g., "OTP telah dikirim...")
     
     // State untuk timer hitung mundur kirim ulang OTP
     const [resendTimer, setResendTimer] = useState(0); 
 
     // State untuk email yang dimasukkan di Step 4 (untuk tombol "Cek Status Antrian Anda")
-    // Default-nya akan diisi dari formData.customer_email setelah pendaftaran berhasil
     const [customerEmailForStatus, setCustomerEmailForStatus] = useState('');
 
-    // Hook dari React Router DOM untuk navigasi programatis (misal: redirect setelah daftar)
+    // Hook dari React Router DOM untuk navigasi programatis
     const navigate = useNavigate();
+
+    // --- Fungsi Validasi Formulir Data Diri (Step 2) ---
+    const validateFormData = () => {
+        const errors = {};
+        if (!formData.customer_name.trim()) {
+            errors.customer_name = 'Nama lengkap wajib diisi.';
+        }
+        if (!formData.customer_email.trim()) {
+            errors.customer_email = 'Email wajib diisi.';
+        } else if (!/\S+@\S+\.\S+/.test(formData.customer_email)) {
+            errors.customer_email = 'Format email tidak valid.';
+        }
+        if (!formData.customer_phone_number.trim()) {
+            errors.customer_phone_number = 'Nomor WhatsApp/Telepon wajib diisi.';
+        } else if (!/^[0-9+ ]+$/.test(formData.customer_phone_number)) { 
+            errors.customer_phone_number = 'Nomor telepon hanya boleh mengandung angka, spasi, atau tanda plus.';
+        } else if (formData.customer_phone_number.length < 8) {
+            errors.customer_phone_number = 'Nomor telepon minimal 8 digit.';
+        }
+        setFieldErrors(errors); // Set error untuk field tertentu
+        return Object.keys(errors).length === 0; // Mengembalikan true jika tidak ada error
+    };
+
+    // --- Fungsi Validasi Kode OTP (Step 3) ---
+    const validateOtpCode = () => {
+        const errors = {};
+        if (!otpCode.trim()) {
+            errors.otpCode = 'Kode OTP wajib diisi.';
+        } else if (otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
+            errors.otpCode = 'Kode OTP harus 6 digit angka.';
+        }
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
 
     // --- useEffect: Mengambil Daftar Layanan Aktif dari Backend ---
     useEffect(() => {
         const fetchServices = async () => {
-            setLoading(true); // Mulai indikator loading
-            setError('');     // Reset pesan error sebelumnya
+            setLoading(true); 
+            // setError(''); // Dihapus, error akan ditampilkan melalui toast
 
             try {
-                // Memanggil API untuk mendapatkan daftar layanan yang aktif (public)
                 const data = await getActiveServicesPublic(); 
-                setServices(data); // Menyimpan daftar layanan ke state
+                setServices(data); 
             } catch (err) {
                 console.error('Gagal mengambil daftar layanan:', err);
-                // Menampilkan pesan error yang lebih informatif dari respons backend, jika ada
-                setError(err.message || 'Gagal memuat layanan. Silakan coba lagi nanti.');
+                toast.error(err.message || 'Gagal memuat layanan. Silakan coba lagi nanti.');
             } finally {
-                setLoading(false); // Hentikan indikator loading
+                setLoading(false); 
             }
         };
 
-        fetchServices(); // Panggil fungsi fetch saat komponen pertama kali dimuat
-    }, []); // Dependensi kosong, artinya useEffect ini hanya berjalan sekali saat komponen di-mount
+        fetchServices(); 
+    }, []); 
 
     // --- useEffect: Mengelola Timer Hitung Mundur Kirim Ulang OTP ---
     useEffect(() => {
         let timerId;
-        if (resendTimer > 0) { // Jika timer masih ada hitungan mundurnya
+        if (resendTimer > 0) { 
             timerId = setInterval(() => {
-                setResendTimer(prev => prev - 1); // Kurangi nilai timer setiap detik
+                setResendTimer(prev => prev - 1); 
             }, 1000);
         }
-        // Cleanup function: Penting untuk membersihkan interval saat komponen unmount atau timer selesai
         return () => clearInterval(timerId);
-    }, [resendTimer]); // Efek ini akan dijalankan ulang setiap kali `resendTimer` berubah
+    }, [resendTimer]); 
 
     // --- Handler: Ketika Pengguna Memilih Layanan dari Daftar ---
     const handleSelectService = (service) => {
-        setSelectedService(service); // Menyimpan objek layanan yang dipilih ke state
-        setFormData(prev => ({ ...prev, service_id: service.id })); // Memperbarui `service_id` di data formulir
-        setStep(2); // Mengubah langkah ke Step 2 (Formulir Pengisian Data)
+        setSelectedService(service); 
+        setFormData(prev => ({ ...prev, service_id: service.id })); 
+        setFieldErrors({}); // <<< BARU: Bersihkan error field saat ganti langkah
+        // setError(''); // Dihapus, karena tidak lagi digunakan secara inline
+        setStep(2); 
     };
 
     // --- Handler: Mengelola Perubahan pada Input Formulir Data Diri ---
     const handleFormChange = (e) => {
-        const { name, value } = e.target; // Mendapatkan nama input dan nilainya
-        setFormData(prev => ({ ...prev, [name]: value })); // Memperbarui state `formData` sesuai input
+        const { name, value } = e.target; 
+        setFormData(prev => ({ ...prev, [name]: value }));
+        // Bersihkan error spesifik field saat input berubah
+        if (fieldErrors[name]) {
+            setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+        }
     };
 
     // --- Handler: Ketika Pengguna Meminta Kode Verifikasi (OTP) ---
     const handleRequestOtp = async (e) => {
-        e.preventDefault(); // Mencegah perilaku default form (refresh halaman)
-        setLoading(true); // Mulai indikator loading
-        setError('');     // Reset pesan error
-        setOtpSentMessage(''); // Reset pesan konfirmasi OTP sebelumnya
-        setOtpCode(''); // Memastikan input OTP kosong sebelum pengiriman baru
+        e.preventDefault(); 
+        // setError(''); // Dihapus
+        
+        // --- BARU: Validasi Frontend Form Data ---
+        if (!validateFormData()) {
+            toast.warn('Mohon lengkapi semua data dengan benar.'); 
+            return; 
+        }
+
+        setLoading(true); 
+        setOtpSentMessage(''); 
+        setOtpCode(''); 
 
         try {
-            let userHasExistingQueue = false; // Flag: apakah user sudah punya antrian (baik aktif atau 'missed')
-            let existingQueueData = null;     // Menyimpan data antrian yang sudah ada (jika ditemukan)
+            let userHasExistingQueue = false; 
+            let existingQueueData = null;     
 
-            // Memanggil API untuk mengecek status antrian pengguna berdasarkan email yang dimasukkan
             const myStatusResponse = await getMyQueueStatus(formData.customer_email);
             
-            // Jika API menemukan antrian aktif atau terlewat (myStatusResponse.queue tidak null)
             if (myStatusResponse && myStatusResponse.queue) {
                 userHasExistingQueue = true;
                 existingQueueData = myStatusResponse.queue;
             }
 
             if (userHasExistingQueue) {
-                // --- Skenario: Pengguna sudah memiliki antrian hari ini ---
                 if (existingQueueData.status === 'missed') {
-                    // Jika status antrian sebelumnya 'missed' DAN untuk layanan yang SAMA dengan yang dipilih sekarang
                     if (existingQueueData.service_id === selectedService.id) {
-                        // Tampilkan konfirmasi kepada pengguna apakah ingin mengambil ulang antrian
                         if (window.confirm(`Anda memiliki antrian terlewat (${existingQueueData.full_queue_number}) untuk layanan ${existingQueueData.service_name} hari ini. Apakah Anda ingin mengambil ulang antrian?`)) {
-                            await handleRequeueMissed(formData.customer_email, selectedService.id); // Jika setuju, panggil fungsi requeue
-                            return; // Hentikan eksekusi selanjutnya karena proses sudah ditangani
+                            await handleRequeueMissed(formData.customer_email, selectedService.id);
+                            return; 
                         }
-                        // Jika user memilih TIDAK mengambil ulang, maka proses akan dilanjutkan ke pengiriman OTP baru
-                        // (Diasumsikan dia ingin mendaftar antrian baru untuk layanan yang sama)
                     } else {
-                        // Statusnya 'missed' TAPI UNTUK LAYANAN LAIN
-                        // Lanjutkan ke proses pengiriman OTP baru untuk layanan yang sedang dipilih
-                        // Tidak perlu pesan error karena ini antrian lain
+                        // missed tapi layanan lain, lanjut daftar baru
                     }
                 } else {
-                    // Jika status antrian BUKAN 'missed' (contoh: 'waiting', 'calling', 'completed', 'on_hold')
-                    // Maka pengguna tidak diizinkan mendaftar antrian baru untuk hari ini.
-                    setError('Anda sudah memiliki antrian aktif hari ini untuk layanan ini atau layanan lain. Mohon pantau antrian Anda.');
-                    setLoading(false); // Hentikan loading
-                    return; // Hentikan eksekusi
+                    const msg = 'Anda sudah memiliki antrian aktif hari ini untuk layanan ini atau layanan lain. Mohon pantau antrian Anda.';
+                    toast.info(msg); // Menampilkan toast info
+                    setLoading(false);
+                    return; 
                 }
             }
             
-            // --- Skenario: Lanjutkan ke Pengiriman OTP Baru ---
-            // Kode ini akan dieksekusi jika:
-            // 1. Tidak ada antrian aktif/terlewat sama sekali untuk email ini hari ini.
-            // 2. Ada antrian 'missed', tapi user memilih TIDAK untuk mengambil ulang antrian yang SAMA.
-            // 3. Ada antrian 'missed', tapi antrian tersebut UNTUK LAYANAN LAIN.
-            const response = await requestOtp(formData); // Memanggil API untuk mengirim kode OTP
-            setOtpSentMessage(response.message); // Menampilkan pesan konfirmasi OTP sudah dikirim
-            setResendTimer(60); // Memulai timer hitung mundur kirim ulang OTP (60 detik)
-            setStep(3); // Mengubah langkah ke Step 3 (Verifikasi OTP)
+            const response = await requestOtp(formData); 
+            setOtpSentMessage(response.message); 
+            setResendTimer(60); 
+            setStep(3); 
+            toast.success(response.message); // Menampilkan toast sukses pengiriman OTP
 
         } catch (err) {
             console.error('Gagal meminta OTP:', err);
-            // Menampilkan pesan error dari respons API jika ada, atau pesan default jika error lain
-            setError(err.response?.data?.message || err.message || 'Gagal mengirim OTP. Silakan coba lagi.');
+            const msg = err.response?.data?.message || err.message || 'Gagal mengirim OTP. Silakan coba lagi.';
+            toast.error(msg); // Menampilkan toast error
         } finally {
-            setLoading(false); // Menghentikan indikator loading
+            setLoading(false); 
         }
     };
 
     // --- Handler: Ketika Pengguna Memverifikasi Kode OTP ---
     const handleVerifyOtp = async (e) => {
-        e.preventDefault(); // Mencegah refresh halaman
+        e.preventDefault(); 
         setLoading(true);
-        setError(''); // Reset error
+        // setError(''); // Dihapus
+        
+        // --- BARU: Validasi Frontend Kode OTP ---
+        if (!validateOtpCode()) {
+            toast.warn('Kode OTP harus 6 digit angka.');
+            setLoading(false);
+            return;
+        }
 
         try {
-            // Menggabungkan data formulir dengan kode OTP yang dimasukkan
-            const dataToSend = { ...formData, otp_code: otpCode };
-            // Memanggil API untuk memverifikasi OTP dan membuat entri antrian baru
+            const dataToSend = { ...formData, otp_code: otpCode }; 
             const response = await verifyOtpAndCreateQueue(dataToSend);
-            setQueueResult(response.queue); // Menyimpan detail antrian yang berhasil dibuat
-            setCustomerEmailForStatus(formData.customer_email); // Menyimpan email untuk tombol "Cek Status Antrian Anda" di Step 4
-            setStep(4); // Mengubah langkah ke Step 4 (Antrian Berhasil Dibuat)
+            setQueueResult(response.queue); 
+            setCustomerEmailForStatus(formData.customer_email); 
+            setStep(4); 
+            toast.success(response.message); // Menampilkan toast sukses pembuatan antrian
         } catch (err) {
             console.error('Verifikasi OTP gagal:', err);
-            setError(err.response?.data?.message || err.message || 'Verifikasi OTP gagal. Silakan coba lagi.');
+            const msg = err.response?.data?.message || err.message || 'Verifikasi OTP gagal. Silakan coba lagi.';
+            toast.error(msg); // Menampilkan toast error
         } finally {
-            setLoading(false); // Menghentikan loading
+            setLoading(false); 
         }
     };
 
     // --- Handler: Ketika Pengguna Meminta "Ambil Ulang Antrian" (Requeue Missed) ---
     const handleRequeueMissed = async (email, serviceId) => {
+        setLoading(true); // Menggunakan loading utama karena ini akan mengubah langkah
         // eslint-disable-next-line no-undef
-        setActionLoading(true); // Mulai loading untuk aksi requeue
-        setError('');
-        // eslint-disable-next-line no-undef
-        setSuccessMessage('');
+        setActionLoading(true); // Untuk tombol requeue
+        // setError(''); // Dihapus
+        // setSuccessMessage(''); // Tidak digunakan lagi dengan toastx`
 
         try {
-            // Memanggil API untuk mengambil ulang antrian yang terlewat
             const response = await requeueMissed({ customer_email: email, service_id: serviceId });
             
-            // Memperbarui `queueResult` dengan informasi antrian baru
             setQueueResult({
                 full_queue_number: response.new_queue_number,
-                service_name: selectedService.service_name // Mengambil nama layanan dari yang dipilih sebelumnya
+                service_name: selectedService.service_name 
             });
-            setCustomerEmailForStatus(email); // Memastikan email di state untuk cek status tetap benar
-            setStep(4); // Langsung pindah ke Step 4 (Antrian Berhasil Dibuat)
-            // eslint-disable-next-line no-undef
-            setSuccessMessage(response.message || 'Antrian berhasil diambil ulang!'); // Tampilkan pesan sukses
+            setCustomerEmailForStatus(email); 
+            setStep(4); 
+            toast.success(response.message || 'Antrian berhasil diambil ulang!'); // Menampilkan toast sukses requeue
+
         } catch (err) {
             console.error('Gagal mengambil ulang antrian:', err);
-            setError(err.message || 'Gagal mengambil ulang antrian. Silakan coba lagi.');
+            const msg = err.response?.data?.message || err.message || 'Gagal mengambil ulang antrian. Silakan coba lagi.';
+            toast.error(msg); // Menampilkan toast error
         } finally {
+            setLoading(false); 
             // eslint-disable-next-line no-undef
-            setActionLoading(false); // Hentikan loading
+            setActionLoading(false); 
         }
     };
 
     // --- Handler: Ketika Pengguna Meminta Kirim Ulang Kode OTP ---
     const handleResendOtp = async () => {
         setLoading(true);
-        setError('');
-        setOtpSentMessage(''); // Menghapus pesan konfirmasi OTP sebelumnya
+        // setError(''); // Dihapus
+        setOtpSentMessage(''); 
         try {
-            const response = await requestOtp(formData); // Mengirim permintaan OTP lagi
-            setOtpSentMessage(response.message); // Menampilkan pesan konfirmasi baru
-            setResendTimer(60); // Mengatur ulang timer ke 60 detik
+            const response = await requestOtp(formData); 
+            setOtpSentMessage(response.message); 
+            setResendTimer(60); 
+            toast.success(response.message || 'Kode OTP berhasil dikirim ulang.'); // Toast sukses resend
         } catch (err) {
             console.error('Gagal mengirim ulang OTP:', err);
-            setError(err.message || 'Gagal mengirim ulang OTP.');
+            const msg = err.response?.data?.message || err.message || 'Gagal mengirim ulang OTP.';
+            toast.error(msg); // Toast error resend
         } finally {
-            setLoading(false); // Menghentikan loading
+            setLoading(false); 
         }
     };
 
@@ -240,9 +282,10 @@ const QueueRegistrationPage = () => {
                     <>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Pilih Layanan Antrian</h2>
                         {loading && <p className="text-blue-500 text-center">Memuat layanan...</p>}
-                        {error && <p className="text-red-500 text-center">{error}</p>}
+                        {/* Pesan error global sekarang ditangani oleh react-hot-toast */}
+                        {/* {error && <p className="text-red-500 text-center">{error}</p>} */} 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {!loading && !error && services.length === 0 && (
+                            {!loading && services.length === 0 && ( // Hapus !error dari kondisi
                                 <p className="text-center text-gray-600 col-span-full">Tidak ada layanan aktif saat ini.</p>
                             )}
                             {services.map(service => (
@@ -266,11 +309,8 @@ const QueueRegistrationPage = () => {
                 return (
                     <>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Daftar Antrian: {selectedService?.service_name}</h2>
-                        {error && (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                                <span className="block sm:inline">{error}</span>
-                            </div>
-                        )}
+                        {/* Pesan error global dari request OTP kini via toast, bukan inline div */}
+                        {/* {error && ( ... )} */} 
                         <form onSubmit={handleRequestOtp} className="space-y-4">
                             <div>
                                 <label htmlFor="customer_name" className="block text-sm font-medium text-gray-700">Nama Lengkap:</label>
@@ -280,9 +320,10 @@ const QueueRegistrationPage = () => {
                                     name="customer_name"
                                     value={formData.customer_name}
                                     onChange={handleFormChange}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 ${fieldErrors.customer_name ? 'border-red-500' : ''}`}
                                     required
                                 />
+                                {fieldErrors.customer_name && <p className="text-red-500 text-xs mt-1">{fieldErrors.customer_name}</p>}
                             </div>
                             <div>
                                 <label htmlFor="customer_email" className="block text-sm font-medium text-gray-700">Email (untuk OTP & notifikasi):</label>
@@ -292,9 +333,10 @@ const QueueRegistrationPage = () => {
                                     name="customer_email"
                                     value={formData.customer_email}
                                     onChange={handleFormChange}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 ${fieldErrors.customer_email ? 'border-red-500' : ''}`}
                                     required
                                 />
+                                {fieldErrors.customer_email && <p className="text-red-500 text-xs mt-1">{fieldErrors.customer_email}</p>}
                             </div>
                             <div>
                                 <label htmlFor="customer_phone_number" className="block text-sm font-medium text-gray-700">Nomor WhatsApp/Telepon (untuk notifikasi):</label>
@@ -304,15 +346,16 @@ const QueueRegistrationPage = () => {
                                     name="customer_phone_number"
                                     value={formData.customer_phone_number}
                                     onChange={handleFormChange}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 ${fieldErrors.customer_phone_number ? 'border-red-500' : ''}`}
                                     placeholder="e.g., 081234567890"
                                     required
                                 />
+                                {fieldErrors.customer_phone_number && <p className="text-red-500 text-xs mt-1">{fieldErrors.customer_phone_number}</p>}
                             </div>
                             <div className="flex justify-between items-center">
                                 <button
                                     type="button"
-                                    onClick={() => setStep(1)} // Kembali ke pilihan layanan
+                                    onClick={() => { setStep(1); setFieldErrors({}); /* setError(''); */ }} // Bersihkan error saat kembali
                                     className="px-4 py-2 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300"
                                 >
                                     &larr; Kembali
@@ -333,11 +376,8 @@ const QueueRegistrationPage = () => {
                     <>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Verifikasi OTP</h2>
                         <p className="text-gray-600 text-center mb-4">{otpSentMessage || 'Silakan masukkan kode verifikasi yang telah dikirimkan ke email Anda.'}</p>
-                        {error && (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                                <span className="block sm:inline">{error}</span>
-                            </div>
-                        )}
+                        {/* Pesan error global dari verifikasi OTP kini via toast, bukan inline div */}
+                        {/* {error && ( ... )} */}
                         <form onSubmit={handleVerifyOtp} className="space-y-4">
                             <div>
                                 <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700">Kode OTP:</label>
@@ -346,16 +386,17 @@ const QueueRegistrationPage = () => {
                                     id="otpCode"
                                     name="otpCode"
                                     value={otpCode}
-                                    onChange={(e) => setOtpCode(e.target.value)}
-                                    maxLength="6" // OTP biasanya 6 digit
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-center text-xl tracking-widest focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    onChange={(e) => { setOtpCode(e.target.value); if (fieldErrors.otpCode) setFieldErrors(prev => ({ ...prev, otpCode: undefined })); }} // Bersihkan error saat input
+                                    maxLength="6" 
+                                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm text-center text-xl tracking-widest focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 ${fieldErrors.otpCode ? 'border-red-500' : ''}`}
                                     required
                                 />
+                                {fieldErrors.otpCode && <p className="text-red-500 text-xs mt-1">{fieldErrors.otpCode}</p>}
                             </div>
                             <div className="flex justify-between items-center">
                                 <button
                                     type="button"
-                                    onClick={() => setStep(2)} // Kembali ke pengisian data
+                                    onClick={() => { setStep(2); setFieldErrors({}); /* setError(''); */ }} 
                                     className="px-4 py-2 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300"
                                 >
                                     &larr; Ubah Data
@@ -401,12 +442,11 @@ const QueueRegistrationPage = () => {
                             <p className="text-gray-600 mb-4">Masukkan kembali email yang Anda gunakan untuk mendaftar antrian untuk melihat status antrian Anda secara real-time.</p>
                             <form className="flex flex-col md:flex-row gap-4" onSubmit={async (e) => {
                                 e.preventDefault();
-                                // Navigasi ke halaman status antrian pribadi dengan meneruskan email sebagai query parameter
                                 navigate(`/my-queue-status?email=${customerEmailForStatus}`);
                             }}>
                                 <input
                                     type="email"
-                                    value={customerEmailForStatus || formData.customer_email} // Default dari form pendaftaran
+                                    value={customerEmailForStatus || formData.customer_email} 
                                     onChange={(e) => setCustomerEmailForStatus(e.target.value)}
                                     placeholder="Masukkan email Anda"
                                     className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-2 px-3"
@@ -433,11 +473,9 @@ const QueueRegistrationPage = () => {
     };
 
     return (
-        // Container utama halaman, mengatur layout dan background
         <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4">
-            {/* Kartu putih utama yang berisi konten langkah-langkah */}
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all duration-300 ease-in-out">
-                {renderStepContent()} {/* Memanggil fungsi render untuk menampilkan konten langkah saat ini */}
+                {renderStepContent()}
             </div>
         </div>
     );
