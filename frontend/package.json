@@ -14,6 +14,7 @@
     "axios": "^1.10.0",
     "axioss": "^0.0.1-security",
     "frontend": "file:",
+    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "jsqr": "^1.4.0",

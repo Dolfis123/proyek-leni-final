@@ -1,8 +1,9 @@
+/* eslint-disable no-unused-vars */
 // src/components/common/DashboardLayout.jsx
-import React from 'react';
+import React, { useState } from 'react'; 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../api/auth'; 
-import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT untuk notifikasi
+import toast from 'react-hot-toast'; 
 
 // Import Icon dari react-icons
 import { 
@@ -14,7 +15,9 @@ import {
     FaBoxOpen, 
     FaClipboardList, 
     FaSignOutAlt, 
-    FaUserCircle 
+    FaUserCircle,
+    FaBars, 
+    FaTimes 
 } from 'react-icons/fa'; 
 
 
@@ -23,73 +26,62 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
     const location = useLocation();
     const user = getCurrentUser();
 
+    // State untuk mengontrol visibilitas sidebar (true = terbuka lebar, false = kolaps/sembunyi)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
+
+
     // --- Handler: Logout Pengguna dengan Konfirmasi ---
     const handleLogout = () => {
-        // <<< BARU: Tambahkan konfirmasi logout >>>
         if (window.confirm('Apakah Anda yakin ingin keluar?')) {
-            logout(); // Hapus token dan data user dari localStorage
-            navigate('/login'); // Arahkan pengguna kembali ke halaman login
-            toast.success('Anda telah berhasil keluar.'); // Notifikasi sukses logout
+            logout(); 
+            navigate('/login'); 
+            toast.success('Anda telah berhasil keluar.'); 
         } else {
-            toast.info('Logout dibatalkan.'); // Notifikasi jika logout dibatalkan
+            toast.info('Logout dibatalkan.'); 
         }
     };
 
     // --- Fungsi: Untuk menentukan kelas aktif pada tautan navigasi ---
     const isActiveLink = (path) => {
+        // Menggunakan "active" jika path cocok, jika tidak, gunakan hover
         return location.pathname === path ? 'bg-blue-700 text-white shadow-inner' : 'hover:bg-blue-700 hover:text-white';
     };
 
     // --- Fungsi: Merender Navigasi Sidebar Berdasarkan Peran Pengguna ---
+    // Sekarang akan menampilkan/menyembunyikan teks berdasarkan isSidebarOpen
     const renderSidebarNav = () => {
+        const LinkComponent = ({ to, icon: Icon, text }) => (
+            <Link to={to} className={`flex items-center space-x-3 py-2.5 px-4 rounded transition-all duration-200 ${isActiveLink(to)}`}>
+                <Icon className="text-lg min-w-[20px]" /> {/* min-w untuk menjaga ukuran ikon */}
+                <span className={`whitespace-nowrap overflow-hidden ${isSidebarOpen ? 'opacity-100 w-auto ml-2' : 'opacity-0 w-0 ml-0'}`}> {/* Kontrol visibilitas teks */}
+                    {text}
+                </span>
+            </Link>
+        );
+
         if (user?.role === 'super_admin') {
             return (
                 <>
-                    <Link to="/superadmin/dashboard" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/superadmin/dashboard')}`}>
-                        <FaHome className="text-lg" />
-                        <span>Home</span>
-                    </Link>
-                    <Link to="/superadmin/users" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/superadmin/users')}`}>
-                        <FaUsers className="text-lg" />
-                        <span>Kelola Pengguna</span>
-                    </Link>
-                    <Link to="/superadmin/services" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/superadmin/services')}`}>
-                        <FaBoxOpen className="text-lg" />
-                        <span>Kelola Layanan</span>
-                    </Link>
-                    <Link to="/superadmin/settings" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/superadmin/settings')}`}>
-                        <FaCogs className="text-lg" />
-                        <span>Pengaturan Sistem</span>
-                    </Link>
-                    <Link to="/superadmin/holidays" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/superadmin/holidays')}`}>
-                        <FaCalendarAlt className="text-lg" />
-                        <span>Kelola Hari Libur</span>
-                    </Link>
-                    <Link to="/superadmin/reports" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/superadmin/reports')}`}>
-                        <FaChartBar className="text-lg" />
-                        <span>Laporan Antrian</span>
-                    </Link>
+                    <LinkComponent to="/superadmin/dashboard" icon={FaHome} text="Home" />
+                    <LinkComponent to="/superadmin/users" icon={FaUsers} text="Kelola Pengguna" />
+                    <LinkComponent to="/superadmin/services" icon={FaBoxOpen} text="Kelola Layanan" />
+                    <LinkComponent to="/superadmin/settings" icon={FaCogs} text="Pengaturan Sistem" />
+                    <LinkComponent to="/superadmin/holidays" icon={FaCalendarAlt} text="Kelola Hari Libur" />
+                    <LinkComponent to="/superadmin/reports" icon={FaChartBar} text="Laporan Antrian" />
                 </>
             );
         } 
         else if (user?.role === 'admin') {
             return (
                 <>
-                    <Link to="/admin/dashboard" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/admin/dashboard')}`}>
-                        <FaHome className="text-lg" />
-                        <span>Home</span>
-                    </Link>
-                    <Link to="/admin/queue-management" className={`flex items-center space-x-3 py-2.5 px-4 rounded transition duration-200 ${isActiveLink('/admin/queue-management')}`}>
-                        <FaClipboardList className="text-lg" />
-                        <span>Manajemen Antrian</span>
-                    </Link>
+                    <LinkComponent to="/admin/dashboard" icon={FaHome} text="Home" />
+                    <LinkComponent to="/admin/queue-management" icon={FaClipboardList} text="Manajemen Antrian" />
                 </>
             );
         }
         return null;
     };
 
-    // --- Pengamanan Route: Redirect ke Login Jika Pengguna Belum Login ---
     if (!user) {
         navigate('/login'); 
         return null;
@@ -99,8 +91,13 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
     return (
         <div className="flex min-h-screen bg-gray-100">
             {/* Sidebar Kiri */}
-            <div className="w-64 bg-gradient-to-b from-blue-700 to-indigo-800 text-white flex flex-col p-4 shadow-xl"> 
-                <div className="text-xl font-bold mb-6 text-center border-b border-blue-500 pb-4"> 
+            {/* Styling responsif: Sidebar akan transisi lebar dan posisi */}
+            <div className={`fixed inset-y-0 left-0 z-40 bg-gradient-to-b from-blue-700 to-indigo-800 text-white flex flex-col p-4 shadow-xl 
+                        transition-all duration-300 ease-in-out
+                        ${isSidebarOpen ? 'w-64' : 'w-20'} /* Lebar sidebar dinamis */
+                        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}> {/* Sembunyi/slide di layar kecil, tapi selalu di posisi di md ke atas */}
+                
+                <div className={`text-xl font-bold mb-6 text-center border-b border-blue-500 pb-4 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}> {/* Judul sidebar dinamis */}
                     {user.role === 'super_admin' ? 'Super Admin Panel' : 'Admin Panel'}
                 </div>
                 {/* Area Navigasi Sidebar */}
@@ -108,13 +105,13 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
                     {renderSidebarNav()}
                 </nav>
                 {/* Bagian Bawah Sidebar (Info User & Logout) */}
-                <div className="mt-auto pt-4 border-t border-blue-500"> 
+                <div className={`mt-auto pt-4 border-t border-blue-500 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}> 
                     <div className="flex items-center space-x-2 text-sm text-gray-200 mb-4"> 
                         <FaUserCircle className="text-xl" /> 
                         <span>{user.full_name || user.username} ({user.role})</span>
                     </div>
                     <button
-                        onClick={handleLogout} // Panggil handler logout saat tombol diklik
+                        onClick={handleLogout} 
                         className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-200 flex items-center justify-center space-x-2" 
                     >
                         <FaSignOutAlt className="text-lg" /> 
@@ -123,12 +120,29 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
                 </div>
             </div>
 
+            {/* Overlay untuk Layar Kecil saat Sidebar Terbuka */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+            )}
+
             {/* Konten Utama Dashboard */}
-            <div className="flex-1 flex flex-col">
+            {/* Penyesuaian margin kiri agar tidak tertutup sidebar, disesuaikan dengan lebar sidebar dinamis */}
+            <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out
+                        ${isSidebarOpen ? 'md:ml-64' : 'md:ml-20'} /* Margin kiri dinamis */
+                        ml-0`}> {/* Margin kiri 0 di layar kecil */}
+                
                 {/* Header Konten Utama */}
                 <header className="bg-white shadow-md p-4 flex justify-between items-center z-10"> 
-                    <h1 className="text-2xl font-bold text-gray-800">{title}</h1> 
+                    {/* Tombol Hamburger (Selalu Tampil) */}
+                    <button 
+                        onClick={() => setIsSidebarOpen(prev => !prev)}
+                        className="text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-2" // <<< SELALU TAMPIL
+                    >
+                        {isSidebarOpen ? <FaTimes className="text-xl" /> : <FaBars className="text-xl" />}
+                    </button>
+                    <h1 className="text-2xl font-bold text-gray-800 ml-4">{title}</h1> {/* Judul halaman dinamis */}
                     {/* Anda bisa menambahkan elemen header lain di sini (misal: notifikasi, profil) */}
+                    <div className="flex-1 flex justify-end"></div> {/* Mengatur elemen lain di header ke kanan */}
                 </header>
 
                 {/* Area Konten Utama (children adalah komponen halaman yang dirender di dalam layout ini) */}
@@ -140,4 +154,4 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
     );
 };
 
-export default DashboardLayout;
+export default DashboardLayout; 
