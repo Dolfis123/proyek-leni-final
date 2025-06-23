@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Menggunakan Link dan useNavigate untuk navigasi
 import { 
-    getActiveServicesPublic, 
-    requestOtp, 
-    verifyOtpAndCreateQueue, 
-    getMyQueueStatus, 
-    requeueMissed 
+    getActiveServicesPublic, // Mengambil daftar layanan aktif
+    requestOtp,             // Meminta kode OTP
+    verifyOtpAndCreateQueue, // Memverifikasi OTP dan membuat antrian
+    getMyQueueStatus,       // Mengecek status antrian pengguna (untuk handle 'missed' atau 'active queue')
+    requeueMissed           // Mengambil ulang antrian yang terlewat
 } from '../../api/queue'; // Mengimpor fungsi-fungsi API untuk antrian
 
 const QueueRegistrationPage = () => {
@@ -14,146 +14,152 @@ const QueueRegistrationPage = () => {
     // Step 1: Pilih Layanan
     // Step 2: Isi Data Diri & Minta OTP
     // Step 3: Verifikasi OTP
-    // Step 4: Antrian Berhasil Dibuat
+    // Step 4: Antrian Berhasil Dibuat (Tampilan Nomor Antrian)
     const [step, setStep] = useState(1); 
 
     // State untuk menyimpan daftar layanan yang tersedia
     const [services, setServices] = useState([]);
-    // State untuk menyimpan layanan yang dipilih pengguna
+    // State untuk menyimpan layanan yang dipilih pengguna dari Step 1
     const [selectedService, setSelectedService] = useState(null);
 
-    // State untuk menyimpan data formulir pendaftaran
+    // State untuk menyimpan data formulir pendaftaran (nama, email, telepon)
     const [formData, setFormData] = useState({
         customer_name: '',
         customer_email: '',
         customer_phone_number: '',
-        service_id: '', // Akan diisi saat layanan dipilih
+        service_id: '', // ID layanan yang dipilih, otomatis terisi saat handleSelectService
     });
 
-    // State untuk input kode OTP
+    // State untuk input kode OTP oleh pengguna di Step 3
     const [otpCode, setOtpCode] = useState('');
-    // State untuk menyimpan hasil akhir nomor antrian yang didapat
-    const [queueResult, setQueueResult] = useState(null);
+    // State untuk menyimpan hasil akhir nomor antrian yang didapat setelah verifikasi berhasil
+    const [queueResult, setQueueResult] = useState(null); // Berisi { full_queue_number, service_name, ... }
 
-    // State untuk mengelola status loading dan error
-    const [loading, setLoading] = useState(false); // Untuk keseluruhan proses
+    // State untuk mengelola status loading dan error UI
+    const [loading, setLoading] = useState(false); // Indikator loading untuk seluruh proses form
     const [error, setError] = useState(''); // Pesan error yang ditampilkan ke user
-    const [otpSentMessage, setOtpSentMessage] = useState(''); // Pesan konfirmasi pengiriman OTP
+    const [otpSentMessage, setOtpSentMessage] = useState(''); // Pesan konfirmasi setelah OTP dikirim (e.g., "OTP telah dikirim...")
     
-    // State untuk timer kirim ulang OTP
+    // State untuk timer hitung mundur kirim ulang OTP
     const [resendTimer, setResendTimer] = useState(0); 
 
-    // State untuk email yang dimasukkan di Step 4 untuk cek status (defaultnya email yg didaftarkan)
+    // State untuk email yang dimasukkan di Step 4 (untuk tombol "Cek Status Antrian Anda")
+    // Default-nya akan diisi dari formData.customer_email setelah pendaftaran berhasil
     const [customerEmailForStatus, setCustomerEmailForStatus] = useState('');
 
-    // Hook dari React Router DOM untuk navigasi programatis
+    // Hook dari React Router DOM untuk navigasi programatis (misal: redirect setelah daftar)
     const navigate = useNavigate();
 
-    // --- useEffect untuk Mengambil Daftar Layanan Aktif ---
+    // --- useEffect: Mengambil Daftar Layanan Aktif dari Backend ---
     useEffect(() => {
         const fetchServices = async () => {
-            setLoading(true); // Mulai loading
-            setError(''); // Reset error
+            setLoading(true); // Mulai indikator loading
+            setError('');     // Reset pesan error sebelumnya
 
             try {
-                const data = await getActiveServicesPublic(); // Panggil API untuk mendapatkan layanan aktif
-                setServices(data); // Simpan layanan ke state
+                // Memanggil API untuk mendapatkan daftar layanan yang aktif (public)
+                const data = await getActiveServicesPublic(); 
+                setServices(data); // Menyimpan daftar layanan ke state
             } catch (err) {
                 console.error('Gagal mengambil daftar layanan:', err);
-                // Menampilkan pesan error yang lebih user-friendly
+                // Menampilkan pesan error yang lebih informatif dari respons backend, jika ada
                 setError(err.message || 'Gagal memuat layanan. Silakan coba lagi nanti.');
             } finally {
-                setLoading(false); // Hentikan loading
+                setLoading(false); // Hentikan indikator loading
             }
         };
 
-        fetchServices(); // Panggil fungsi saat komponen pertama kali dimuat
-    }, []); // Dependensi kosong, hanya berjalan sekali saat mount
+        fetchServices(); // Panggil fungsi fetch saat komponen pertama kali dimuat
+    }, []); // Dependensi kosong, artinya useEffect ini hanya berjalan sekali saat komponen di-mount
 
-    // --- useEffect untuk Timer Kirim Ulang OTP ---
+    // --- useEffect: Mengelola Timer Hitung Mundur Kirim Ulang OTP ---
     useEffect(() => {
         let timerId;
-        if (resendTimer > 0) { // Jika timer berjalan
+        if (resendTimer > 0) { // Jika timer masih ada hitungan mundurnya
             timerId = setInterval(() => {
-                setResendTimer(prev => prev - 1); // Kurangi timer setiap detik
+                setResendTimer(prev => prev - 1); // Kurangi nilai timer setiap detik
             }, 1000);
         }
-        // Cleanup function: hentikan timer saat komponen unmount atau timer selesai
+        // Cleanup function: Penting untuk membersihkan interval saat komponen unmount atau timer selesai
         return () => clearInterval(timerId);
-    }, [resendTimer]); // Berjalan setiap kali resendTimer berubah
+    }, [resendTimer]); // Efek ini akan dijalankan ulang setiap kali `resendTimer` berubah
 
-    // --- Handler: Ketika Pengguna Memilih Layanan ---
+    // --- Handler: Ketika Pengguna Memilih Layanan dari Daftar ---
     const handleSelectService = (service) => {
-        setSelectedService(service); // Simpan layanan yang dipilih
-        setFormData(prev => ({ ...prev, service_id: service.id })); // Perbarui service_id di formData
-        setStep(2); // Lanjutkan ke langkah pengisian data
+        setSelectedService(service); // Menyimpan objek layanan yang dipilih ke state
+        setFormData(prev => ({ ...prev, service_id: service.id })); // Memperbarui `service_id` di data formulir
+        setStep(2); // Mengubah langkah ke Step 2 (Formulir Pengisian Data)
     };
 
-    // --- Handler: Ketika Input Formulir Berubah ---
+    // --- Handler: Mengelola Perubahan pada Input Formulir Data Diri ---
     const handleFormChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value })); // Perbarui state formData
+        const { name, value } = e.target; // Mendapatkan nama input dan nilainya
+        setFormData(prev => ({ ...prev, [name]: value })); // Memperbarui state `formData` sesuai input
     };
 
     // --- Handler: Ketika Pengguna Meminta Kode Verifikasi (OTP) ---
     const handleRequestOtp = async (e) => {
-        e.preventDefault(); // Mencegah refresh halaman
-        setLoading(true);
-        setError('');
-        setOtpSentMessage('');
-        setOtpCode(''); // Reset input OTP
+        e.preventDefault(); // Mencegah perilaku default form (refresh halaman)
+        setLoading(true); // Mulai indikator loading
+        setError('');     // Reset pesan error
+        setOtpSentMessage(''); // Reset pesan konfirmasi OTP sebelumnya
+        setOtpCode(''); // Memastikan input OTP kosong sebelum pengiriman baru
 
         try {
-            let userHasExistingQueue = false; // Flag apakah user sudah punya antrian (aktif/missed)
-            let existingQueueData = null; // Data antrian yang sudah ada (jika ditemukan)
+            let userHasExistingQueue = false; // Flag: apakah user sudah punya antrian (baik aktif atau 'missed')
+            let existingQueueData = null;     // Menyimpan data antrian yang sudah ada (jika ditemukan)
 
-            // Lakukan pengecekan status antrian saat ini untuk email yang dimasukkan
+            // Memanggil API untuk mengecek status antrian pengguna berdasarkan email yang dimasukkan
             const myStatusResponse = await getMyQueueStatus(formData.customer_email);
             
-            // Jika ada respons dan respons.queue tidak null (berarti ada antrian ditemukan)
+            // Jika API menemukan antrian aktif atau terlewat (myStatusResponse.queue tidak null)
             if (myStatusResponse && myStatusResponse.queue) {
                 userHasExistingQueue = true;
                 existingQueueData = myStatusResponse.queue;
             }
 
             if (userHasExistingQueue) {
-                // Skenario: Pengguna sudah memiliki antrian hari ini
+                // --- Skenario: Pengguna sudah memiliki antrian hari ini ---
                 if (existingQueueData.status === 'missed') {
-                    // Jika statusnya 'missed' DAN untuk layanan yang SAMA dengan yang sedang dipilih
+                    // Jika status antrian sebelumnya 'missed' DAN untuk layanan yang SAMA dengan yang dipilih sekarang
                     if (existingQueueData.service_id === selectedService.id) {
-                        // Tanyakan apakah ingin mengambil ulang antrian
+                        // Tampilkan konfirmasi kepada pengguna apakah ingin mengambil ulang antrian
                         if (window.confirm(`Anda memiliki antrian terlewat (${existingQueueData.full_queue_number}) untuk layanan ${existingQueueData.service_name} hari ini. Apakah Anda ingin mengambil ulang antrian?`)) {
-                            await handleRequeueMissed(formData.customer_email, selectedService.id);
-                            return; // Proses selesai, langsung ke tampilan antrian baru
+                            await handleRequeueMissed(formData.customer_email, selectedService.id); // Jika setuju, panggil fungsi requeue
+                            return; // Hentikan eksekusi selanjutnya karena proses sudah ditangani
                         }
-                        // Jika user memilih TIDAK mengambil ulang, maka lanjut ke proses OTP baru (dia bisa daftar lagi)
+                        // Jika user memilih TIDAK mengambil ulang, maka proses akan dilanjutkan ke pengiriman OTP baru
+                        // (Diasumsikan dia ingin mendaftar antrian baru untuk layanan yang sama)
                     } else {
                         // Statusnya 'missed' TAPI UNTUK LAYANAN LAIN
-                        // Lanjutkan untuk minta OTP baru untuk layanan yang sedang dipilih
-                        // (Tidak perlu pesan error karena ini antrian lain)
+                        // Lanjutkan ke proses pengiriman OTP baru untuk layanan yang sedang dipilih
+                        // Tidak perlu pesan error karena ini antrian lain
                     }
                 } else {
-                    // Jika statusnya BUKAN 'missed' (misal: waiting, calling, completed, on_hold)
-                    // Maka pengguna tidak boleh daftar antrian baru untuk hari ini.
+                    // Jika status antrian BUKAN 'missed' (contoh: 'waiting', 'calling', 'completed', 'on_hold')
+                    // Maka pengguna tidak diizinkan mendaftar antrian baru untuk hari ini.
                     setError('Anda sudah memiliki antrian aktif hari ini untuk layanan ini atau layanan lain. Mohon pantau antrian Anda.');
-                    setLoading(false);
-                    return; // Hentikan proses
+                    setLoading(false); // Hentikan loading
+                    return; // Hentikan eksekusi
                 }
             }
             
-            // Skenario: Tidak ada antrian aktif, ATAU antrian 'missed' tapi user memilih tidak requeue, ATAU 'missed' untuk layanan lain.
-            // Lanjutkan untuk mengirim permintaan OTP baru.
-            const response = await requestOtp(formData); // Panggil API request OTP
-            setOtpSentMessage(response.message); // Tampilkan pesan bahwa OTP sudah dikirim
-            setResendTimer(60); // Mulai timer kirim ulang OTP
-            setStep(3); // Lanjutkan ke langkah verifikasi OTP
+            // --- Skenario: Lanjutkan ke Pengiriman OTP Baru ---
+            // Kode ini akan dieksekusi jika:
+            // 1. Tidak ada antrian aktif/terlewat sama sekali untuk email ini hari ini.
+            // 2. Ada antrian 'missed', tapi user memilih TIDAK untuk mengambil ulang antrian yang SAMA.
+            // 3. Ada antrian 'missed', tapi antrian tersebut UNTUK LAYANAN LAIN.
+            const response = await requestOtp(formData); // Memanggil API untuk mengirim kode OTP
+            setOtpSentMessage(response.message); // Menampilkan pesan konfirmasi OTP sudah dikirim
+            setResendTimer(60); // Memulai timer hitung mundur kirim ulang OTP (60 detik)
+            setStep(3); // Mengubah langkah ke Step 3 (Verifikasi OTP)
 
         } catch (err) {
             console.error('Gagal meminta OTP:', err);
-            // Menampilkan pesan error dari respons API jika ada, atau pesan default
+            // Menampilkan pesan error dari respons API jika ada, atau pesan default jika error lain
             setError(err.response?.data?.message || err.message || 'Gagal mengirim OTP. Silakan coba lagi.');
         } finally {
-            setLoading(false); // Hentikan loading
+            setLoading(false); // Menghentikan indikator loading
         }
     };
 
@@ -161,40 +167,51 @@ const QueueRegistrationPage = () => {
     const handleVerifyOtp = async (e) => {
         e.preventDefault(); // Mencegah refresh halaman
         setLoading(true);
-        setError('');
+        setError(''); // Reset error
 
         try {
-            const dataToSend = { ...formData, otp_code: otpCode }; // Gabungkan data form dengan OTP
-            const response = await verifyOtpAndCreateQueue(dataToSend); // Panggil API verifikasi & buat antrian
-            setQueueResult(response.queue); // Simpan hasil antrian yang didapat
-            setCustomerEmailForStatus(formData.customer_email); // Set email untuk pengecekan status di step 4
-            setStep(4); // Lanjutkan ke langkah Antrian Berhasil Dibuat
+            // Menggabungkan data formulir dengan kode OTP yang dimasukkan
+            const dataToSend = { ...formData, otp_code: otpCode };
+            // Memanggil API untuk memverifikasi OTP dan membuat entri antrian baru
+            const response = await verifyOtpAndCreateQueue(dataToSend);
+            setQueueResult(response.queue); // Menyimpan detail antrian yang berhasil dibuat
+            setCustomerEmailForStatus(formData.customer_email); // Menyimpan email untuk tombol "Cek Status Antrian Anda" di Step 4
+            setStep(4); // Mengubah langkah ke Step 4 (Antrian Berhasil Dibuat)
         } catch (err) {
             console.error('Verifikasi OTP gagal:', err);
             setError(err.response?.data?.message || err.message || 'Verifikasi OTP gagal. Silakan coba lagi.');
         } finally {
-            setLoading(false); // Hentikan loading
+            setLoading(false); // Menghentikan loading
         }
     };
 
-    // --- Handler: Ketika Pengguna Meminta "Ambil Ulang Antrian" ---
+    // --- Handler: Ketika Pengguna Meminta "Ambil Ulang Antrian" (Requeue Missed) ---
     const handleRequeueMissed = async (email, serviceId) => {
-        setLoading(true);
+        // eslint-disable-next-line no-undef
+        setActionLoading(true); // Mulai loading untuk aksi requeue
         setError('');
+        // eslint-disable-next-line no-undef
+        setSuccessMessage('');
+
         try {
+            // Memanggil API untuk mengambil ulang antrian yang terlewat
             const response = await requeueMissed({ customer_email: email, service_id: serviceId });
-            // Set hasil antrian dengan nomor antrian baru yang didapat dari requeue
+            
+            // Memperbarui `queueResult` dengan informasi antrian baru
             setQueueResult({
                 full_queue_number: response.new_queue_number,
-                service_name: selectedService.service_name // Ambil nama layanan dari selectedService
+                service_name: selectedService.service_name // Mengambil nama layanan dari yang dipilih sebelumnya
             });
-            setCustomerEmailForStatus(email); // Set email untuk pengecekan status di step 4
-            setStep(4); // Langsung ke langkah Antrian Berhasil Dibuat
+            setCustomerEmailForStatus(email); // Memastikan email di state untuk cek status tetap benar
+            setStep(4); // Langsung pindah ke Step 4 (Antrian Berhasil Dibuat)
+            // eslint-disable-next-line no-undef
+            setSuccessMessage(response.message || 'Antrian berhasil diambil ulang!'); // Tampilkan pesan sukses
         } catch (err) {
             console.error('Gagal mengambil ulang antrian:', err);
             setError(err.message || 'Gagal mengambil ulang antrian. Silakan coba lagi.');
         } finally {
-            setLoading(false);
+            // eslint-disable-next-line no-undef
+            setActionLoading(false); // Hentikan loading
         }
     };
 
@@ -202,23 +219,23 @@ const QueueRegistrationPage = () => {
     const handleResendOtp = async () => {
         setLoading(true);
         setError('');
-        setOtpSentMessage(''); // Hapus pesan lama
+        setOtpSentMessage(''); // Menghapus pesan konfirmasi OTP sebelumnya
         try {
-            const response = await requestOtp(formData); // Kirim permintaan OTP lagi
-            setOtpSentMessage(response.message); // Tampilkan pesan baru
-            setResendTimer(60); // Reset timer ke 60 detik
+            const response = await requestOtp(formData); // Mengirim permintaan OTP lagi
+            setOtpSentMessage(response.message); // Menampilkan pesan konfirmasi baru
+            setResendTimer(60); // Mengatur ulang timer ke 60 detik
         } catch (err) {
             console.error('Gagal mengirim ulang OTP:', err);
             setError(err.message || 'Gagal mengirim ulang OTP.');
         } finally {
-            setLoading(false);
+            setLoading(false); // Menghentikan loading
         }
     };
 
-    // --- Fungsi untuk Merender Konten Berdasarkan Langkah (Step) ---
+    // --- Fungsi untuk Merender Konten Berdasarkan Langkah (Step) Saat Ini ---
     const renderStepContent = () => {
         switch (step) {
-            case 1: // Langkah 1: Pilih Layanan
+            case 1: // Langkah 1: Memilih Layanan
                 return (
                     <>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Pilih Layanan Antrian</h2>
@@ -245,7 +262,7 @@ const QueueRegistrationPage = () => {
                         </div>
                     </>
                 );
-            case 2: // Langkah 2: Isi Data Diri & Minta OTP
+            case 2: // Langkah 2: Mengisi Data Diri & Meminta OTP
                 return (
                     <>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Daftar Antrian: {selectedService?.service_name}</h2>
@@ -368,7 +385,7 @@ const QueueRegistrationPage = () => {
                         </form>
                     </>
                 );
-            case 4: // Langkah 4: Antrian Berhasil Dibuat
+            case 4: // Langkah 4: Antrian Berhasil Dibuat (Tampilan Nomor Antrian)
                 return (
                     <>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Antrian Anda Berhasil Dibuat!</h2>
@@ -384,7 +401,7 @@ const QueueRegistrationPage = () => {
                             <p className="text-gray-600 mb-4">Masukkan kembali email yang Anda gunakan untuk mendaftar antrian untuk melihat status antrian Anda secara real-time.</p>
                             <form className="flex flex-col md:flex-row gap-4" onSubmit={async (e) => {
                                 e.preventDefault();
-                                // Navigasi ke halaman status antrian pribadi dengan meneruskan email sebagai query param
+                                // Navigasi ke halaman status antrian pribadi dengan meneruskan email sebagai query parameter
                                 navigate(`/my-queue-status?email=${customerEmailForStatus}`);
                             }}>
                                 <input

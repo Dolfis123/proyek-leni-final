@@ -1,86 +1,91 @@
 // src/pages/public/MyQueueStatusPage.jsx
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // Untuk mendapatkan query params
+import { useLocation } from 'react-router-dom'; // Untuk mendapatkan query params dari URL
 import { getMyQueueStatus, requeueMissed } from '../../api/queue'; // Import API dari service
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom'; // Untuk navigasi internal
 
 const MyQueueStatusPage = () => {
     const location = useLocation(); // Hook untuk mengakses objek lokasi (URL)
-    const [email, setEmail] = useState('');
-    const [queueStatus, setQueueStatus] = useState(null); // Menyimpan objek status antrian
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [actionLoading, setActionLoading] = useState(false); // Loading untuk aksi (requeue)
+    const [email, setEmail] = useState(''); // State untuk email yang akan dicari
+    const [queueStatus, setQueueStatus] = useState(null); // Menyimpan objek status antrian dari backend
+    const [loading, setLoading] = useState(false); // Status loading saat mencari antrian
+    const [error, setError] = useState(''); // Pesan error yang ditampilkan
+    const [actionLoading, setActionLoading] = useState(false); // Loading state untuk tombol aksi (misal: requeue)
+    const [successMessage, setSuccessMessage] = useState(''); // Pesan sukses setelah aksi
 
-    // Efek untuk mengambil email dari URL query parameter saat halaman dimuat
+    // --- useEffect: Mengambil Email dari URL Query Parameter ---
+    // Akan berjalan saat komponen dimuat atau URL query berubah
     useEffect(() => {
         const queryParams = new URLSearchParams(location.search);
-        const emailFromUrl = queryParams.get('email');
+        const emailFromUrl = queryParams.get('email'); // Mengambil nilai 'email' dari '?email=...'
         if (emailFromUrl) {
-            setEmail(emailFromUrl);
-            fetchQueueStatus(emailFromUrl);
+            setEmail(emailFromUrl); // Set email ke state
+            fetchQueueStatus(emailFromUrl); // Langsung cari status antrian jika email ada di URL
         }
-    }, [location.search]); // Hanya re-run jika string query berubah
+    }, [location.search]); // Dependensi: hanya re-run jika string query berubah
 
-    // Fungsi untuk mengambil status antrian dari backend
+    // --- Fungsi: Mengambil Status Antrian dari Backend ---
     const fetchQueueStatus = async (currentEmail) => {
         if (!currentEmail) return; // Jangan fetch jika email kosong
-        setLoading(true);
-        setError('');
+
+        setLoading(true); // Mulai loading
+        setError('');     // Reset error
+        setSuccessMessage(''); // Reset pesan sukses
+
         try {
-            const data = await getMyQueueStatus(currentEmail); // Panggil API
-            // Data akan berisi { message, queue, current_calling_number, queues_in_front, estimated_wait_time }
-            setQueueStatus(data);
+            // Panggil API untuk mendapatkan status antrian pribadi
+            const data = await getMyQueueStatus(currentEmail); 
+            // Data akan berisi: { message, queue, current_calling_number, queues_in_front, estimated_wait_time }
+            setQueueStatus(data); // Simpan data ke state
         } catch (err) {
-            console.error('Failed to fetch my queue status:', err);
+            console.error('Gagal mengambil status antrian saya:', err);
             setQueueStatus(null); // Reset status jika ada error
-            setError(err.message || 'Failed to load queue status. Please try again.');
+            // Tampilkan pesan error dari backend jika ada, atau pesan default
+            setError(err.response?.data?.message || err.message || 'Gagal memuat status antrian. Silakan coba lagi.');
         } finally {
-            setLoading(false);
+            setLoading(false); // Hentikan loading
         }
     };
 
-    // Handler untuk submit form email
+    // --- Handler: Submit Formulir Email ---
     const handleSubmit = (e) => {
-        e.preventDefault();
-        fetchQueueStatus(email);
+        e.preventDefault(); // Mencegah refresh halaman
+        fetchQueueStatus(email); // Panggil fungsi fetch dengan email yang ada di state
     };
 
-    // Handler untuk "Ambil Ulang Antrian"
+    // --- Handler: "Ambil Ulang Antrian" (Requeue Missed) ---
     const handleRequeue = async () => {
-        if (!queueStatus?.queue?.id || !queueStatus?.queue?.service_id) {
-            setError('Invalid queue data for requeue.');
+        // Validasi dasar
+        if (!queueStatus?.queue?.id || !queueStatus?.queue?.service_id || queueStatus.queue.status !== 'missed') {
+            setError('Data antrian tidak valid untuk ambil ulang.');
             return;
         }
+        // Konfirmasi pengguna
         if (!window.confirm('Apakah Anda yakin ingin mengambil ulang antrian ini? Anda akan mendapatkan nomor antrian baru di urutan terakhir.')) {
             return;
         }
 
-        setActionLoading(true);
-        setError('');
+        setActionLoading(true); // Mulai loading untuk aksi
+        setError('');         // Reset error
+        setSuccessMessage(''); // Reset pesan sukses
+        
         try {
+            // Panggil API untuk mengambil ulang antrian
             const response = await requeueMissed({
                 customer_email: email,
                 service_id: queueStatus.queue.service_id
             });
-            // Update status dengan informasi antrian baru
-            setQueueStatus({
-                ...response, // Response dari backend harus mencakup new_queue_number
-                message: 'Antrian Anda berhasil diambil ulang!',
-                queue: {
-                    ...queueStatus.queue, // Pertahankan detail queue lama
-                    status: 'waiting', // Status baru
-                    full_queue_number: response.new_queue_number // Nomor antrian baru
-                },
-                queues_in_front: (await getMyQueueStatus(email))?.queues_in_front || 'N/A', // Update posisi baru
-                estimated_wait_time: (await getMyQueueStatus(email))?.estimated_wait_time || 'N/A' // Update estimasi baru
-            });
-            // Anda mungkin ingin menavigasi atau memberikan konfirmasi yang lebih jelas
+            
+            // Perbarui state queueStatus dengan informasi antrian baru
+            // Kita panggil ulang fetchQueueStatus untuk mendapatkan data terbaru dan akurat setelah requeue
+            await fetchQueueStatus(email); 
+            setSuccessMessage(response.message || 'Antrian berhasil diambil ulang!'); // Tampilkan pesan sukses
+
         } catch (err) {
-            console.error('Failed to requeue:', err);
-            setError(err.message || 'Failed to take new queue. Please try again.');
+            console.error('Gagal mengambil ulang antrian:', err);
+            setError(err.response?.data?.message || err.message || 'Gagal mengambil ulang antrian. Silakan coba lagi.');
         } finally {
-            setActionLoading(false);
+            setActionLoading(false); // Hentikan loading
         }
     };
 
@@ -89,14 +94,21 @@ const MyQueueStatusPage = () => {
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
                 <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Status Antrian Anda</h2>
                 
+                {/* Area Pesan (Error, Loading, Sukses) */}
                 {error && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                         <span className="block sm:inline">{error}</span>
                     </div>
                 )}
-                {actionLoading && <p className="text-blue-500 text-center mb-4">Processing request...</p>}
+                {successMessage && (
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <span className="block sm:inline">{successMessage}</span>
+                    </div>
+                )}
+                {loading && <p className="text-blue-500 text-center mb-4">Mencari status antrian...</p>}
+                {actionLoading && <p className="text-indigo-500 text-center mb-4">Memproses permintaan...</p>}
 
-                {/* Form untuk input email */}
+                {/* Formulir Input Email */}
                 <form onSubmit={handleSubmit} className="mb-8 p-4 border border-gray-200 rounded-lg">
                     <label htmlFor="emailInput" className="block text-sm font-medium text-gray-700 mb-2">
                         Masukkan Email Anda:
@@ -116,31 +128,46 @@ const MyQueueStatusPage = () => {
                             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200"
                             disabled={loading}
                         >
-                            {loading ? 'Mencari...' : 'Cari Antrian'}
+                            Cari Antrian
                         </button>
                     </div>
                 </form>
 
                 {/* Tampilan Status Antrian */}
-                {loading && !queueStatus && (
-                    <p className="text-center text-blue-600">Mencari status antrian...</p>
-                )}
-                
-                {!loading && queueStatus && queueStatus.queue && (
-                    <div className="bg-green-50 p-6 rounded-lg border border-green-200 text-center">
-                        <p className="text-green-700 text-lg mb-2">Nomor Antrian Anda:</p>
-                        <p className="text-6xl font-extrabold text-green-800 mb-4">{queueStatus.queue.full_queue_number}</p>
-                        <p className="text-xl text-gray-700">Layanan: <span className="font-semibold">{queueStatus.queue.service?.service_name || 'N/A'}</span></p> {/* service.service_name dari join */}
-                        <p className="text-xl text-gray-700">Status: <span className={`font-semibold capitalize ${queueStatus.queue.status === 'calling' ? 'text-red-600' : queueStatus.queue.status === 'waiting' ? 'text-blue-600' : 'text-gray-600'}`}>{queueStatus.queue.status.replace('_', ' ')}</span></p>
+                {!loading && !error && queueStatus && queueStatus.queue ? ( // Pastikan queueStatus dan queue tidak null
+                    <div className="bg-white p-6 rounded-lg border border-gray-200 text-center shadow-md">
+                        <p className="text-gray-700 text-lg mb-2">Nomor Antrian Anda:</p>
+                        <p className="text-6xl font-extrabold text-blue-800 mb-4">{queueStatus.queue.full_queue_number}</p>
+                        <p className="text-xl text-gray-700">Layanan: <span className="font-semibold">{queueStatus.queue.service?.service_name || 'N/A'}</span></p> {/* Menggunakan optional chaining .service?.service_name */}
+                        <p className="text-xl text-gray-700 mb-4">Status: <span className={`font-semibold capitalize 
+                            ${queueStatus.queue.status === 'calling' ? 'text-red-600' : 
+                                queueStatus.queue.status === 'waiting' ? 'text-blue-600' : 
+                                queueStatus.queue.status === 'on_hold' ? 'text-yellow-600' : 'text-gray-600'}`
+                            }>
+                                {queueStatus.queue.status.replace('_', ' ')}
+                            </span>
+                        </p>
                         
-                        {queueStatus.queue.status !== 'calling' && queueStatus.queue.status !== 'completed' && queueStatus.queue.status !== 'expired' && (
+                        {/* Tampilkan detail posisi jika statusnya relevan */}
+                        {['waiting', 'on_hold'].includes(queueStatus.queue.status) && (
                             <>
                                 <p className="text-gray-700 text-lg mt-4">Antrian di Depan: <span className="font-semibold">{queueStatus.queues_in_front}</span></p>
                                 <p className="text-gray-700 text-lg">Estimasi Waktu Tunggu: <span className="font-semibold">{queueStatus.estimated_wait_time}</span></p>
-                                <p className="text-gray-700 text-sm">Nomor Sedang Dipanggil: <span className="font-semibold">{queueStatus.current_calling_number}</span></p>
+                                <p className="text-gray-700 text-sm mt-2">Nomor Sedang Dipanggil: <span className="font-semibold">{queueStatus.current_calling_number}</span></p>
                             </>
                         )}
+                         {queueStatus.queue.status === 'calling' && (
+                            <p className="text-green-600 text-xl font-semibold mt-4">Silakan menuju loket sekarang!</p>
+                        )}
+                        {queueStatus.queue.status === 'completed' && (
+                            <p className="text-green-700 text-xl font-semibold mt-4">Layanan Anda telah selesai.</p>
+                        )}
+                        {queueStatus.queue.status === 'expired' && (
+                            <p className="text-red-700 text-xl font-semibold mt-4">Antrian Anda telah kadaluarsa. Silakan daftar antrian baru.</p>
+                        )}
 
+
+                        {/* Tombol Ambil Ulang Antrian jika statusnya 'missed' */}
                         {queueStatus.queue.status === 'missed' && (
                             <button
                                 onClick={handleRequeue}
@@ -151,17 +178,19 @@ const MyQueueStatusPage = () => {
                             </button>
                         )}
                     </div>
-                )}
-                {!loading && !error && !queueStatus && email && (
-                    <p className="text-center text-gray-600">Tidak ditemukan antrian aktif untuk email ini hari ini.</p>
-                )}
-                {!loading && !error && !email && (
-                    <p className="text-center text-gray-600">Masukkan email Anda untuk melihat status antrian.</p>
+                ) : (
+                    // Pesan jika tidak ada antrian ditemukan atau belum mencari
+                    !loading && !error && (
+                        <p className="text-center text-gray-600">
+                            {email ? `Tidak ditemukan antrian aktif untuk email "${email}" hari ini.` : 'Masukkan email Anda untuk melihat status antrian.'}
+                        </p>
+                    )
                 )}
 
-                <div className="text-center mt-8">
+                {/* Navigasi Footer */}
+                <div className="text-center mt-8 space-x-4">
                     <Link to="/register-queue" className="text-blue-600 hover:underline">Daftar Antrian Baru</Link>
-                    <span className="mx-2 text-gray-400">|</span>
+                    <span className="text-gray-400">|</span>
                     <Link to="/status-display" className="text-blue-600 hover:underline">Lihat Status Antrian Publik</Link>
                 </div>
             </div>

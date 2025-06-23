@@ -10,9 +10,9 @@ import ManageSystemSettingsPage from './pages/superadmin/ManageSystemSettingsPag
 import ManageHolidaysPage from './pages/superadmin/ManageHolidaysPage';
 import QueueRegistrationPage from './pages/public/QueueRegistrationPage';
 import QueueStatusDisplayPage from './pages/public/QueueStatusDisplayPage';
-import MyQueueStatusPage from './pages/public/MyQueueStatusPage'; // Import komponen baru
+import MyQueueStatusPage from './pages/public/MyQueueStatusPage';
 import QueueManagementPage from './pages/admin/QueueManagementPage';
-
+import QueueReportsPage from './pages/superadmin/QueueReportsPage'; // <<< PASTIKAN INI ADA
 import { getToken, getCurrentUser } from './api/auth';
 
 // PrivateRoute komponen (tetap sama)
@@ -39,7 +39,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/register-queue" element={<QueueRegistrationPage />} />
             <Route path="/status-display" element={<QueueStatusDisplayPage />} />
-            <Route path="/my-queue-status" element={<MyQueueStatusPage />} /> {/* BARU: Halaman Status Pribadi */}
+            <Route path="/my-queue-status" element={<MyQueueStatusPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Navigate to="/register-queue" replace />} />
 
@@ -65,6 +65,8 @@ function App() {
                 path="/superadmin/holidays"
                 element={<PrivateRoute allowedRoles={['super_admin']}><ManageHolidaysPage /></PrivateRoute>}
             />
+      
+
             <Route
                 path="/admin/dashboard"
                 element={<PrivateRoute allowedRoles={['admin']}><AdminDashboard /></PrivateRoute>}
@@ -73,7 +75,12 @@ function App() {
                 path="/admin/queue-management"
                 element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><QueueManagementPage /></PrivateRoute>}
             />
-
+   
+            {/* ... (Routes Super Admin lainnya) ... */}
+            <Route
+                path="/superadmin/reports" // <<< PASTIKAN ROUTE INI ADA
+                element={<PrivateRoute allowedRoles={['super_admin']}><QueueReportsPage /></PrivateRoute>}
+            />
             {/* Catch-all untuk halaman tidak ditemukan */}
             <Route path="*" element={<h1 className="text-center text-3xl font-bold mt-20">404 - Page Not Found</h1>} />
         </Routes>

@@ -1,10 +1,9 @@
 // src/api/queue.js
 import axios from 'axios';
-import authApi from './auth'; // Menggunakan instance axios yang sudah dikonfigurasi untuk auth (jika ada request yg perlu auth)
+import authApi from './auth';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-// Instance axios khusus untuk public routes (tanpa token)
 const publicApi = axios.create({
     baseURL: API_URL,
     headers: {
@@ -14,7 +13,6 @@ const publicApi = axios.create({
 
 export const getActiveServicesPublic = async () => {
     try {
-        // Ini endpoint yang tidak butuh autentikasi
         const response = await publicApi.get('/services/active');
         return response.data;
     } catch (error) {
@@ -39,28 +37,18 @@ export const verifyOtpAndCreateQueue = async (data) => {
         throw error.response?.data || error.message;
     }
 };
+
 export const getMyQueueStatus = async (email) => {
     try {
         const response = await publicApi.get(`/queue/status/my-queue?email=${email}`);
-        return response.data; // Ini akan mengembalikan { message, queue, current_calling_number, ... }
+        return response.data;
     } catch (error) {
-        // PERBAIKAN: Tangani 404 sebagai kondisi 'tidak ada antrian', bukan error fatal
         if (error.response && error.response.status === 404) {
-            // Jika 404, kembalikan objek yang menandakan tidak ada antrian aktif
             return { queue: null, message: error.response.data.message || 'No active queue found.' };
         }
-        // Untuk error lain (e.g., 500 Internal Server Error, network error), tetap throw
         throw error.response?.data || error.message;
     }
 };
-// export const getMyQueueStatus = async (email) => {
-//     try {
-//         const response = await publicApi.get(`/queue/status/my-queue?email=${email}`);
-//         return response.data;
-//     } catch (error) {
-//         throw error.response?.data || error.message;
-//     }
-// };
 
 export const requeueMissed = async (data) => {
     try {
@@ -118,4 +106,20 @@ export const getPublicQueueStatusAPI = async () => {
     }
 };
 
-export default publicApi; // Ekspor instance public api
+// --- BARIS YANG SANGAT PENTING: Export fungsi getQueueReport ---
+export const getQueueReport = async (startDate, endDate, serviceId = null) => {
+    try {
+        // URL yang BENAR menggunakan template literal
+        let url = `/queue/reports?startDate=${startDate}&endDate=${endDate}`; 
+        if (serviceId) {
+            url += `&serviceId=${serviceId}`;
+        }
+        const response = await authApi.get(url); // Menggunakan authApi karena ini route Super Admin
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+};
+
+
+export default publicApi;
