@@ -1,31 +1,27 @@
 // src/pages/superadmin/QueueReportsPage.jsx
-import React, { useState, useEffect, useRef } from 'react'; // <<< PASTIKAN useRef DIIMPORT
-import DashboardLayout from '../../components/common/DashboardLayout'; // Layout dasar dashboard
-import { getQueueReport } from '../../api/queue'; // Fungsi API untuk mengambil laporan
-import { getAllServices } from '../../api/services'; // Fungsi API untuk mengambil daftar layanan (untuk filter)
-import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
+import React, { useState, useEffect, useRef } from 'react'; 
+import DashboardLayout from '../../components/common/DashboardLayout'; 
+import { getQueueReport } from '../../api/queue'; 
+import { getAllServices } from '../../api/services'; 
+import toast from 'react-hot-toast'; 
 
 const QueueReportsPage = () => {
-    // State untuk menyimpan data laporan yang diterima dari backend
     const [reportData, setReportData] = useState([]);
-    // State untuk menyimpan daftar layanan yang akan digunakan di dropdown filter
     const [services, setServices] = useState([]);
-    // State untuk indikator loading saat mengambil laporan
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(''); // <<< AKTIFKAN KEMBALI BARIS INI!
+    // const [error, setError] = useState(''); // Dihapus, diganti toast.error
 
-    // State untuk parameter filter laporan
-    const [startDate, setStartDate] = useState('');     // Tanggal mulai filter (YYYY-MM-DD)
-    const [endDate, setEndDate] = useState('');         // Tanggal akhir filter (YYYY-MM-DD)
-    const [selectedServiceId, setSelectedServiceId] = useState(''); // ID layanan yang dipilih untuk filter
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [selectedServiceId, setSelectedServiceId] = useState('');
 
-    const effectRan = useRef(false); // <<< PASTIKAN useRef ini ada untuk effectRan
+    const effectRan = useRef(false); 
 
     // --- useEffect: Mengambil Daftar Layanan untuk Dropdown Filter ---
     useEffect(() => {
         const fetchServicesForFilter = async () => { 
             try {
-                const data = await getAllServices(); // Mengambil semua layanan (termasuk yang tidak aktif)
+                const data = await getAllServices(); 
                 setServices(data);
             } catch (err) {
                 console.error('Gagal mengambil daftar layanan untuk filter laporan:', err);
@@ -37,7 +33,6 @@ const QueueReportsPage = () => {
 
     // --- Fungsi: Mengambil Data Laporan dari Backend ---
     const fetchReport = async () => {
-        // Validasi: pastikan tanggal mulai dan akhir sudah dipilih
         if (!startDate || !endDate) {
             toast.warn('Mohon pilih tanggal mulai dan tanggal akhir.'); 
             setReportData([]); 
@@ -45,7 +40,7 @@ const QueueReportsPage = () => {
         }
 
         setLoading(true); 
-        setError(''); // Reset error state
+        // setError(''); // Dihapus
 
         try {
             const data = await getQueueReport(startDate, endDate, selectedServiceId || null);
@@ -55,7 +50,6 @@ const QueueReportsPage = () => {
         } catch (err) {
             console.error('Gagal mengambil laporan:', err);
             const msg = err.response?.data?.message || err.message || 'Gagal memuat data laporan.';
-            setError(msg); // Set error state, meskipun toast juga akan ditampilkan
             toast.error(msg); 
         } finally {
             setLoading(false); 
@@ -77,20 +71,19 @@ const QueueReportsPage = () => {
         // DEBUGGING: Log setiap kali useEffect ini dieksekusi
         console.log('[QueueReportsPage] useEffect (fetchReport) triggered');
 
-        // Pola untuk menjalankan fetchReport hanya sekali pada initial load,
-        // dan setiap kali filter berubah setelah itu.
-        if (effectRan.current === false) {
-            effectRan.current = true; 
-            // Panggil fetchReport di sini untuk initial load
-            if (startDate && endDate) { // Pastikan tanggal sudah diset oleh useEffect sebelumnya
-                fetchReport();
+        const loadReportOnFilterChange = async () => {
+            if (effectRan.current === false) {
+                effectRan.current = true; 
+                if (startDate && endDate) { 
+                    fetchReport();
+                }
+            } else {
+                if (startDate && endDate) { 
+                    fetchReport();
+                }
             }
-        } else {
-            // Jika sudah bukan initial mount (filter berubah)
-            if (startDate && endDate) { 
-                fetchReport();
-            }
-        }
+        };
+        loadReportOnFilterChange();
     }, [startDate, endDate, selectedServiceId]); 
 
 
@@ -146,10 +139,12 @@ const QueueReportsPage = () => {
 
             {/* Area Pesan (Loading, Error) */}
             {loading && <p className="text-blue-500 text-center">Memuat data laporan...</p>}
-            {error && <p className="text-red-500 text-center">{error}</p>} {/* <<< Pastikan ini tetap ada untuk menampilkan error */}
+            {/* Error global sekarang ditangani oleh react-hot-toast, jadi tidak lagi ditampilkan secara inline */}
+            {/* {error && <p className="text-red-500 text-center">{error}</p>} */}
 
             {/* Tampilan Tabel Laporan */}
-            {!loading && !error && reportData.length > 0 ? (
+            {/* Tampilkan tabel hanya jika tidak loading, tidak ada error, dan ada data */}
+            {!loading && reportData.length > 0 ? ( // Hapus `!error` dari kondisi ini
                 <div className="bg-white p-6 rounded-lg shadow-md">
                     <h3 className="text-xl font-semibold text-gray-800 mb-4">Ringkasan Laporan</h3>
                     <div className="overflow-x-auto">
@@ -193,7 +188,7 @@ const QueueReportsPage = () => {
                 </div>
             ) : (
                 // Pesan jika tidak ada data laporan ditemukan atau filter belum lengkap
-                !loading && !error && ( // <<< Pastikan error juga dicek di sini
+                !loading && ( // Hapus `!error` dari kondisi ini
                     <p className="text-center text-gray-600 mt-8">
                         {startDate && endDate ? 'Tidak ditemukan data laporan untuk rentang tanggal dan filter yang dipilih.' : 'Mohon pilih tanggal mulai dan tanggal akhir untuk membuat laporan.'}
                     </p>

@@ -1,31 +1,38 @@
 // src/components/common/DashboardLayout.jsx
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // <<< TAMBAHKAN useLocation
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../api/auth'; 
+import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT untuk notifikasi
 
-// <<< BARU: Import Icon dari react-icons >>>
-// Kita akan menggunakan ikon dari Font Awesome (Fa)
+// Import Icon dari react-icons
 import { 
     FaHome, 
     FaUsers, 
     FaCogs, 
     FaCalendarAlt, 
     FaChartBar, 
-    FaBoxOpen, // Untuk services
-    FaClipboardList, // Untuk Queue Management
-    FaSignOutAlt, // Untuk Logout
-    FaUserCircle // Untuk avatar user
-} from 'react-icons/fa'; // Pastikan Anda menginstal Font Awesome icons
+    FaBoxOpen, 
+    FaClipboardList, 
+    FaSignOutAlt, 
+    FaUserCircle 
+} from 'react-icons/fa'; 
 
 
 const DashboardLayout = ({ children, title = "Dashboard" }) => {
     const navigate = useNavigate();
-    const location = useLocation(); // <<< BARU: Hook useLocation untuk mengetahui path saat ini
+    const location = useLocation();
     const user = getCurrentUser();
 
+    // --- Handler: Logout Pengguna dengan Konfirmasi ---
     const handleLogout = () => {
-        logout(); 
-        navigate('/login'); 
+        // <<< BARU: Tambahkan konfirmasi logout >>>
+        if (window.confirm('Apakah Anda yakin ingin keluar?')) {
+            logout(); // Hapus token dan data user dari localStorage
+            navigate('/login'); // Arahkan pengguna kembali ke halaman login
+            toast.success('Anda telah berhasil keluar.'); // Notifikasi sukses logout
+        } else {
+            toast.info('Logout dibatalkan.'); // Notifikasi jika logout dibatalkan
+        }
     };
 
     // --- Fungsi: Untuk menentukan kelas aktif pada tautan navigasi ---
@@ -82,33 +89,35 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
         return null;
     };
 
+    // --- Pengamanan Route: Redirect ke Login Jika Pengguna Belum Login ---
     if (!user) {
         navigate('/login'); 
         return null;
     }
 
+    // --- Struktur Layout Utama Dashboard ---
     return (
         <div className="flex min-h-screen bg-gray-100">
             {/* Sidebar Kiri */}
-            <div className="w-64 bg-gradient-to-b from-blue-700 to-indigo-800 text-white flex flex-col p-4 shadow-xl"> {/* <<< Styling baru */}
-                <div className="text-xl font-bold mb-6 text-center border-b border-blue-500 pb-4"> {/* <<< Styling baru */}
+            <div className="w-64 bg-gradient-to-b from-blue-700 to-indigo-800 text-white flex flex-col p-4 shadow-xl"> 
+                <div className="text-xl font-bold mb-6 text-center border-b border-blue-500 pb-4"> 
                     {user.role === 'super_admin' ? 'Super Admin Panel' : 'Admin Panel'}
                 </div>
                 {/* Area Navigasi Sidebar */}
-                <nav className="flex-1 space-y-2"> {/* Menambah space-y untuk jarak antar link */}
+                <nav className="flex-1 space-y-2"> 
                     {renderSidebarNav()}
                 </nav>
                 {/* Bagian Bawah Sidebar (Info User & Logout) */}
-                <div className="mt-auto pt-4 border-t border-blue-500"> {/* <<< Styling baru */}
-                    <div className="flex items-center space-x-2 text-sm text-gray-200 mb-4"> {/* <<< Styling baru */}
-                        <FaUserCircle className="text-xl" /> {/* <<< Icon User */}
+                <div className="mt-auto pt-4 border-t border-blue-500"> 
+                    <div className="flex items-center space-x-2 text-sm text-gray-200 mb-4"> 
+                        <FaUserCircle className="text-xl" /> 
                         <span>{user.full_name || user.username} ({user.role})</span>
                     </div>
                     <button
-                        onClick={handleLogout}
-                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-200 flex items-center justify-center space-x-2" // <<< Styling baru
+                        onClick={handleLogout} // Panggil handler logout saat tombol diklik
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-200 flex items-center justify-center space-x-2" 
                     >
-                        <FaSignOutAlt className="text-lg" /> {/* <<< Icon Logout */}
+                        <FaSignOutAlt className="text-lg" /> 
                         <span>Logout</span>
                     </button>
                 </div>
@@ -117,13 +126,13 @@ const DashboardLayout = ({ children, title = "Dashboard" }) => {
             {/* Konten Utama Dashboard */}
             <div className="flex-1 flex flex-col">
                 {/* Header Konten Utama */}
-                <header className="bg-white shadow-md p-4 flex justify-between items-center z-10"> {/* <<< Styling baru */}
-                    <h1 className="text-2xl font-bold text-gray-800">{title}</h1> {/* Judul halaman dinamis */}
+                <header className="bg-white shadow-md p-4 flex justify-between items-center z-10"> 
+                    <h1 className="text-2xl font-bold text-gray-800">{title}</h1> 
                     {/* Anda bisa menambahkan elemen header lain di sini (misal: notifikasi, profil) */}
                 </header>
 
                 {/* Area Konten Utama (children adalah komponen halaman yang dirender di dalam layout ini) */}
-                <main className="flex-1 p-6 bg-gray-50 overflow-auto"> {/* <<< Styling baru */}
+                <main className="flex-1 p-6 bg-gray-50 overflow-auto"> 
                     {children}
                 </main>
             </div>
