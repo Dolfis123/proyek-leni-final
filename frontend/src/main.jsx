@@ -19,7 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         reverseOrder={false} // Urutan notifikasi (baru di atas atau di bawah)
         toastOptions={{
           // Opsi default untuk semua toast (bisa di-override per toast)
-          duration: 2000, // Durasi default 3 detik
+          duration: 3000, // Durasi default 3 detik
           style: {
             background: '#363636',
             color: '#fff',

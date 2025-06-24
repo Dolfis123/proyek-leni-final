@@ -147,6 +147,7 @@ const ManageServicesPage = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Layanan</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prefix</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimasi Durasi (menit)</th>
@@ -161,8 +162,9 @@ const ManageServicesPage = () => {
                                         <td colSpan="6" className="px-6 py-4 text-center text-gray-500">Tidak ada layanan ditemukan.</td>
                                     </tr>
                                 ) : (
-                                    services.map((service) => (
+                                    services.map((service, index) => (
                                         <tr key={service.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{service.service_name}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{service.service_prefix}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{service.estimated_duration_minutes}</td>
