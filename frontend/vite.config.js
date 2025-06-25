@@ -1,12 +1,13 @@
-// vite.config.js
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // <<< BARU: Konfigurasi server development >>>
   server: {
-    port: 5174 // <<< UBAH PORT DI SINI
+    port: 5174, // Pastikan port sesuai
+    // --- TAMBAHKAN BAGIAN INI ---
+    host: '0.0.0.0', // Ini penting agar bisa diakses dari luar localhost
+    allowedHosts: ['skydance.life', 'www.skydance.life'],
   }
-});
+})
