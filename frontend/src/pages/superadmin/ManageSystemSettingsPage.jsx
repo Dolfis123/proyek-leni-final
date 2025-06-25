@@ -106,10 +106,10 @@ const ManageSystemSettingsPage = () => {
 
     // Ini adalah daftar kunci pengaturan yang ingin ditampilkan di UI
     const settingDefinitions = [
-        { key: 'monday_open_time', label: 'Jam Buka Senin', type: 'time', description: 'Format: HH:MM' },
-        { key: 'monday_close_time', label: 'Jam Tutup Senin', type: 'time', description: 'Format: HH:MM' },
-        { key: 'monday_break_start_time', label: 'Mulai Istirahat Senin', type: 'time', description: 'Format: HH:MM' },
-        { key: 'monday_break_end_time', label: 'Akhir Istirahat Senin', type: 'time', description: 'Format: HH:MM' },
+        { key: 'monday_open_time', label: 'Jam Buka', type: 'time', description: 'Format: HH:MM' },
+        { key: 'monday_close_time', label: 'Jam Tutup', type: 'time', description: 'Format: HH:MM' },
+        // { key: 'monday_break_start_time', label: 'Mulai Istirahat', type: 'time', description: 'Format: HH:MM' },
+        // { key: 'monday_break_end_time', label: 'Akhir Istirahat', type: 'time', description: 'Format: HH:MM' },
         { key: 'daily_reset_time', label: 'Waktu Reset Harian', type: 'time', description: 'Waktu reset antrian setiap hari (misal: 00:00 atau 06:00)' },
         { key: 'notification_threshold', label: 'Batas Notifikasi', type: 'number', description: 'Jumlah antrian sebelum pelanggan mendapat notifikasi "segera dipanggil"' },
         // Anda bisa menambahkan pengaturan lain di sini

@@ -1,4 +1,3 @@
-// src/pages/public/QueueRegistrationPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -31,7 +30,8 @@ const QueueRegistrationPage = () => {
     // State untuk input kode OTP oleh pengguna di Step 3
     const [otpCode, setOtpCode] = useState('');
     // State untuk menyimpan hasil akhir nomor antrian yang didapat setelah verifikasi berhasil
-    const [queueResult, setQueueResult] = useState(null);
+    // State ini sekarang tidak lagi digunakan untuk navigasi, hanya untuk konfirmasi di handleVerifyOtp
+    // const [queueResult, setQueueResult] = useState(null); 
 
     // State untuk mengelola status loading UI
     const [loading, setLoading] = useState(false);
@@ -41,10 +41,7 @@ const QueueRegistrationPage = () => {
     // State untuk timer hitung mundur kirim ulang OTP
     const [resendTimer, setResendTimer] = useState(0);
 
-    // State untuk email yang dimasukkan di Step 4 (untuk tombol "Cek Status Antrian Anda")
-    const [customerEmailForStatus, setCustomerEmailForStatus] = useState('');
-
-    // --- State untuk Paginasi BARU ---
+    // State untuk paginasi di Step 1
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(4); // Hanya menampilkan 4 card per halaman
 
@@ -130,7 +127,6 @@ const QueueRegistrationPage = () => {
         }
     };
 
-
     // --- Handler: Ketika Pengguna Meminta Kode Verifikasi (OTP) ---
     const handleRequestOtp = async (e) => {
         e.preventDefault();
@@ -175,9 +171,8 @@ const QueueRegistrationPage = () => {
 
             const response = await requestOtp(formData);
             setOtpSentMessage(response.message);
-            // --- PERUBAHAN DI SINI: Set timer ke 120 detik (2 menit) ---
+            // --- Mengubah timer ke 120 detik (2 menit) ---
             setResendTimer(120);
-            // --- AKHIR PERUBAHAN ---
             setStep(3);
             toast.success(response.message);
 
@@ -190,7 +185,7 @@ const QueueRegistrationPage = () => {
         }
     };
 
-    // --- Handler: Ketika Pengguna Memverifikasi Kode OTP ---
+    // --- Handler: Ketika Pengguna Memverifikasi Kode OTP dan navigasi langsung ---
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -204,10 +199,13 @@ const QueueRegistrationPage = () => {
         try {
             const dataToSend = { ...formData, otp_code: otpCode };
             const response = await verifyOtpAndCreateQueue(dataToSend);
-            setQueueResult(response.queue);
-            setCustomerEmailForStatus(formData.customer_email);
-            setStep(4);
+            
+            // Tampilkan toast sukses, lalu langsung navigasi
             toast.success(response.message);
+
+            // LANGSUNG NAVIGASI KE HALAMAN STATUS PRIBADI DENGAN EMAIL SEBAGAI QUERY PARAM
+            navigate(`/my-queue-status?email=${formData.customer_email}`);
+
         } catch (err) {
             console.error('Verifikasi OTP gagal:', err);
             const msg = err.response?.data?.message || err.message || 'Verifikasi OTP gagal. Silakan coba lagi.';
@@ -217,21 +215,15 @@ const QueueRegistrationPage = () => {
         }
     };
 
-    // --- Handler: Ketika Pengguna Meminta "Ambil Ulang Antrian" (Requeue Missed) ---
+    // --- Handler: "Ambil Ulang Antrian" (Requeue Missed) ---
     const handleRequeueMissed = async (email, serviceId) => {
         setLoading(true);
-        // setActionLoading(true); // Ini tidak didefinisikan sebelumnya, saya biarkan dalam komentar
-
         try {
             const response = await requeueMissed({ customer_email: email, service_id: serviceId });
-
-            setQueueResult({
-                full_queue_number: response.new_queue_number,
-                service_name: selectedService.service_name
-            });
-            setCustomerEmailForStatus(email);
-            setStep(4);
+            
+            // Setelah requeue berhasil, kita tetap navigasi ke halaman MyQueueStatus
             toast.success(response.message || 'Antrian berhasil diambil ulang!');
+            navigate(`/my-queue-status?email=${email}`);
 
         } catch (err) {
             console.error('Gagal mengambil ulang antrian:', err);
@@ -239,7 +231,6 @@ const QueueRegistrationPage = () => {
             toast.error(msg);
         } finally {
             setLoading(false);
-            // setActionLoading(false); // Ini tidak didefinisikan sebelumnya, saya biarkan dalam komentar
         }
     };
 
@@ -250,9 +241,8 @@ const QueueRegistrationPage = () => {
         try {
             const response = await requestOtp(formData);
             setOtpSentMessage(response.message);
-            // --- PERUBAHAN DI SINI: Set timer ke 120 detik (2 menit) ---
+            // --- Mengubah timer ke 120 detik (2 menit) ---
             setResendTimer(120);
-            // --- AKHIR PERUBAHAN ---
             toast.success(response.message || 'Kode OTP berhasil dikirim ulang.');
         } catch (err) {
             console.error('Gagal mengirim ulang OTP:', err);
@@ -263,7 +253,7 @@ const QueueRegistrationPage = () => {
         }
     };
 
-    // --- Logika Paginasi BARU ---
+    // --- Logika Paginasi untuk Step 1 ---
     const indexOfLastService = currentPage * itemsPerPage;
     const indexOfFirstService = indexOfLastService - itemsPerPage;
     const currentServices = services.slice(indexOfFirstService, indexOfLastService);
@@ -277,7 +267,6 @@ const QueueRegistrationPage = () => {
     const handlePrevPage = () => {
         setCurrentPage(prevPage => Math.max(prevPage - 1, 1));
     };
-    // --- Akhir Logika Paginasi BARU ---
 
     // --- Fungsi untuk Merender Konten Berdasarkan Langkah (Step) Saat Ini ---
     const renderStepContent = () => {
@@ -291,7 +280,7 @@ const QueueRegistrationPage = () => {
                             {!loading && services.length === 0 && (
                                 <p className="text-center text-gray-600 col-span-full">Tidak ada layanan aktif saat ini.</p>
                             )}
-                            {currentServices.map(service => ( // Menggunakan currentServices untuk paginasi
+                            {currentServices.map(service => (
                                 <div
                                     key={service.id}
                                     className="bg-gray-50 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer border border-gray-200"
@@ -307,7 +296,6 @@ const QueueRegistrationPage = () => {
                             ))}
                         </div>
 
-                        {/* --- Kontrol Paginasi BARU --- */}
                         {totalPages > 1 && (
                             <div className="flex justify-center items-center mt-6 space-x-4">
                                 <button
@@ -327,8 +315,6 @@ const QueueRegistrationPage = () => {
                                 </button>
                             </div>
                         )}
-                        {/* --- Akhir Kontrol Paginasi BARU --- */}
-
                         <div className="text-center mt-8">
                             <Link to="/login" className="text-indigo-600 hover:underline font-medium">
                                 Sudah punya akun? Login di sini
@@ -340,269 +326,201 @@ const QueueRegistrationPage = () => {
                         </div>
                     </>
                 );
-case 2: // Langkah 2: Mengisi Data Diri & Meminta OTP
-    return (
-        <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-                Daftar Antrian: {selectedService?.service_name}
-            </h2>
-            <form onSubmit={handleRequestOtp} className="space-y-6">
-                <div>
-                    <label
-                        htmlFor="customer_name"
-                        className="block text-sm font-medium text-gray-700"
-                    >
-                        Nama Lengkap:
-                    </label>
-                    <input
-                        type="text"
-                        id="customer_name"
-                        name="customer_name"
-                        value={formData.customer_name}
-                        onChange={handleFormChange}
-                        className={`mt-1 p-3 block w-full rounded-md border ${
-                            fieldErrors.customer_name
-                                ? "border-red-500"
-                                : "border-gray-300"
-                        } shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
-                        required
-                    />
-                    {fieldErrors.customer_name && (
-                        <p className="text-red-500 text-xs mt-1">
-                            {fieldErrors.customer_name}
-                        </p>
-                    )}
-                </div>
-                <div>
-                    <label
-                        htmlFor="customer_email"
-                        className="block text-sm font-medium text-gray-700"
-                    >
-                        Email (untuk OTP & notifikasi):
-                    </label>
-                    <input
-                        type="email"
-                        id="customer_email"
-                        name="customer_email"
-                        value={formData.customer_email}
-                        onChange={handleFormChange}
-                        className={`mt-1 p-3 block w-full rounded-md border ${
-                            fieldErrors.customer_email
-                                ? "border-red-500"
-                                : "border-gray-300"
-                        } shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
-                        required
-                    />
-                    {fieldErrors.customer_email && (
-                        <p className="text-red-500 text-xs mt-1">
-                            {fieldErrors.customer_email}
-                        </p>
-                    )}
-                </div>
-                <div>
-                    <label
-                        htmlFor="customer_phone_number"
-                        className="block text-sm font-medium text-gray-700"
-                    >
-                        Nomor WhatsApp/Telepon (untuk notifikasi):
-                    </label>
-                    <input
-                        type="tel"
-                        id="customer_phone_number"
-                        name="customer_phone_number"
-                        value={formData.customer_phone_number}
-                        onChange={handleFormChange}
-                        placeholder="e.g., 081234567890"
-                        className={`mt-1 p-3 block w-full rounded-md border ${
-                            fieldErrors.customer_phone_number
-                                ? "border-red-500"
-                                : "border-gray-300"
-                        } shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
-                        required
-                    />
-                    {fieldErrors.customer_phone_number && (
-                        <p className="text-red-500 text-xs mt-1">
-                            {fieldErrors.customer_phone_number}
-                        </p>
-                    )}
-                </div>
-                <div className="flex justify-between items-center">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setStep(1);
-                            setFieldErrors({});
-                        }}
-                        className="px-5 py-3 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
-                    >
-                        &larr; Kembali
-                    </button>
-                    <button
-                        type="submit"
-                        className={`px-5 py-3 rounded-md font-semibold text-white ${
-                            loading
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "bg-indigo-600 hover:bg-indigo-700"
-                        } transition-colors duration-200`}
-                        disabled={loading}
-                    >
-                        {loading ? "Mengirim OTP..." : "Kirim Kode Verifikasi"}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
- case 3: // Langkah 3: Verifikasi OTP
-    return (
-        <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Verifikasi Kode OTP</h2>
-            <p className="text-gray-600 text-center mb-6">
-                {otpSentMessage || 'Silakan masukkan kode verifikasi 6 digit yang telah dikirimkan ke email Anda.'}
-            </p>
-
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
-                <div>
-                    <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700 sr-only">Kode OTP:</label>
-                    <div className="flex justify-center gap-2">
-                        {Array.from({ length: 6 }).map((_, index) => (
-                            <input
-                                key={index}
-                                type="text"
-                                maxLength="1"
-                                // --- BARU: Atribut untuk memastikan hanya angka ---
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                // --- AKHIR BARU ---
-                                value={otpCode[index] || ''}
-                                onChange={(e) => {
-                                    // --- MODIFIKASI: Filter input non-angka ---
-                                    const value = e.target.value.replace(/[^0-9]/g, ''); // Hapus semua karakter non-angka
-                                    if (value === '') { // Jika input dikosongkan (backspace)
-                                        const newOtpCode = otpCode.split('');
-                                        newOtpCode[index] = '';
-                                        setOtpCode(newOtpCode.join(''));
-                                        if (index > 0) {
-                                            e.target.previousSibling?.focus();
-                                        }
-                                    } else if (value.length === 1) { // Jika ada satu angka dimasukkan
-                                        const newOtpCode = otpCode.split('');
-                                        newOtpCode[index] = value;
-                                        setOtpCode(newOtpCode.join(''));
-                                        if (index < 5) {
-                                            e.target.nextSibling?.focus();
-                                        }
-                                    }
-                                    // --- AKHIR MODIFIKASI ---
-
-                                    // Clear field error for OTP if user starts typing
-                                    if (fieldErrors.otpCode) {
-                                        setFieldErrors(prev => ({ ...prev, otpCode: undefined }));
-                                    }
-                                }}
-                                onFocus={(e) => e.target.select()}
-                                className={`w-12 h-12 text-center text-2xl font-bold rounded-md border ${
-                                    fieldErrors.otpCode ? 'border-red-500' : 'border-gray-300'
-                                } shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
-                                required
-                            />
-                        ))}
+            case 2: // Langkah 2: Mengisi Data Diri & Meminta OTP
+                return (
+                    <div className="bg-white rounded-lg shadow-md p-8">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+                            Daftar Antrian: {selectedService?.service_name}
+                        </h2>
+                        <form onSubmit={handleRequestOtp} className="space-y-6">
+                            <div>
+                                <label
+                                    htmlFor="customer_name"
+                                    className="block text-sm font-medium text-gray-700"
+                                >
+                                    Nama Lengkap:
+                                </label>
+                                <input
+                                    type="text"
+                                    id="customer_name"
+                                    name="customer_name"
+                                    value={formData.customer_name}
+                                    onChange={handleFormChange}
+                                    className={`mt-1 p-3 block w-full rounded-md border ${
+                                        fieldErrors.customer_name
+                                            ? "border-red-500"
+                                            : "border-gray-300"
+                                    } shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
+                                    required
+                                />
+                                {fieldErrors.customer_name && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {fieldErrors.customer_name}
+                                    </p>
+                                )}
+                            </div>
+                            <div>
+                                <label
+                                    htmlFor="customer_email"
+                                    className="block text-sm font-medium text-gray-700"
+                                >
+                                    Email (untuk OTP & notifikasi):
+                                </label>
+                                <input
+                                    type="email"
+                                    id="customer_email"
+                                    name="customer_email"
+                                    value={formData.customer_email}
+                                    onChange={handleFormChange}
+                                    className={`mt-1 p-3 block w-full rounded-md border ${
+                                        fieldErrors.customer_email
+                                            ? "border-red-500"
+                                            : "border-gray-300"
+                                    } shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
+                                    required
+                                />
+                                {fieldErrors.customer_email && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {fieldErrors.customer_email}
+                                    </p>
+                                )}
+                            </div>
+                            <div>
+                                <label
+                                    htmlFor="customer_phone_number"
+                                    className="block text-sm font-medium text-gray-700"
+                                >
+                                    Nomor WhatsApp/Telepon (untuk notifikasi):
+                                </label>
+                                <input
+                                    type="tel"
+                                    id="customer_phone_number"
+                                    name="customer_phone_number"
+                                    value={formData.customer_phone_number}
+                                    onChange={handleFormChange}
+                                    placeholder="e.g., 081234567890"
+                                    className={`mt-1 p-3 block w-full rounded-md border ${
+                                        fieldErrors.customer_phone_number
+                                            ? "border-red-500"
+                                            : "border-gray-300"
+                                    } shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
+                                    required
+                                />
+                                {fieldErrors.customer_phone_number && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {fieldErrors.customer_phone_number}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStep(1);
+                                        setFieldErrors({});
+                                    }}
+                                    className="px-5 py-3 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
+                                >
+                                    &larr; Kembali
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={`px-5 py-3 rounded-md font-semibold text-white ${
+                                        loading
+                                            ? "bg-gray-400 cursor-not-allowed"
+                                            : "bg-indigo-600 hover:bg-indigo-700"
+                                    } transition-colors duration-200`}
+                                    disabled={loading}
+                                >
+                                    {loading ? "Mengirim OTP..." : "Kirim Kode Verifikasi"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    {fieldErrors.otpCode && <p className="text-red-500 text-xs mt-2 text-center">{fieldErrors.otpCode}</p>}
-                </div>
-
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4">
-                    <button
-                        type="button"
-                        onClick={() => { setStep(2); setFieldErrors({}); }}
-                        className="w-full md:w-auto px-5 py-3 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
-                    >
-                        &larr; Ubah Data
-                    </button>
-                    <button
-                        type="submit"
-                        className={`w-full md:w-auto px-5 py-3 rounded-md font-semibold text-white ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} transition-colors duration-200`}
-                        disabled={loading}
-                    >
-                        {loading ? 'Memverifikasi...' : 'Verifikasi & Dapatkan Antrian'}
-                    </button>
-                </div>
-
-                <div className="text-center mt-6">
-                    {resendTimer > 0 ? (
-                        <p className="text-sm text-gray-500">Kirim ulang kode dalam <span className="font-bold text-indigo-600">{resendTimer}</span> detik</p>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={handleResendOtp}
-                            className="text-sm text-blue-600 hover:underline disabled:text-gray-400 font-medium"
-                            disabled={loading}
-                        >
-                            Kirim Ulang Kode
-                        </button>
-                    )}
-                </div>
-            </form>
-        </div>
-    );
-           case 4: // Langkah 4: Antrian Berhasil Dibuat (Tampilan Nomor Antrian)
-    return (
-        <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-3xl font-extrabold text-gray-800 mb-8 text-center animate-fadeInUp">
-                Antrian Anda Berhasil Dibuat! 🎉
-            </h2>
-
-            {/* Kotak Nomor Antrian Utama */}
-            <div className="bg-gradient-to-r from-emerald-400 to-green-500 p-8 rounded-xl shadow-2xl text-white text-center mb-8 transform hover:scale-105 transition-transform duration-300">
-                <p className="text-2xl font-semibold mb-3">Nomor Antrian Anda:</p>
-                <p className="text-8xl font-extrabold tracking-tight animate-bounceIn">
-                    {queueResult?.full_queue_number}
-                </p>
-                <p className="text-2xl mt-4">
-                    Untuk Layanan: <span className="font-bold">{queueResult?.service_name}</span>
-                </p>
-                <p className="text-sm text-green-100 mt-6 max-w-sm mx-auto">
-                    Anda akan menerima notifikasi melalui email. Mohon pantau status antrian Anda.
-                </p>
-            </div>
-
-            {/* Bagian Cek Status Antrian Anda */}
-            <div className="mt-8 p-6 bg-gray-50 rounded-lg shadow-lg border border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Cek Status Antrian Anda</h3>
-                <p className="text-gray-600 mb-5">
-                    Masukkan kembali email yang Anda gunakan untuk mendaftar antrian untuk melihat status antrian Anda secara real-time.
-                </p>
-                <form className="flex flex-col md:flex-row gap-4" onSubmit={async (e) => {
-                    e.preventDefault();
-                    navigate(`/my-queue-status?email=${customerEmailForStatus}`);
-                }}>
-                    <input
-                        type="email"
-                        value={customerEmailForStatus || formData.customer_email}
-                        onChange={(e) => setCustomerEmailForStatus(e.target.value)}
-                        placeholder="Masukkan email Anda"
-                        className="flex-1 p-3 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition duration-200 text-gray-800"
-                        required
-                    />
-                    <button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-200 transform hover:scale-105"
-                    >
-                        Lihat Status Antrian
-                    </button>
-                </form>
-
-                <div className="text-center mt-6 pt-4 border-t border-gray-200">
-                    <Link to="/register-queue" className="text-indigo-600 hover:underline font-medium">
-                        Daftar Antrian Baru
-                    </Link>
-                    <span className="mx-3 text-gray-400">|</span>
-                    <Link to="/status-display" className="text-purple-600 hover:underline font-medium">
-                        Lihat Status Antrian Publik
-                    </Link>
-                </div>
-            </div>
-        </div>
-    );
+                );
+            case 3: // Langkah 3: Verifikasi OTP
+                return (
+                    <div className="bg-white rounded-lg shadow-md p-8">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Verifikasi Kode OTP</h2>
+                        <p className="text-gray-600 text-center mb-6">
+                            {otpSentMessage || 'Silakan masukkan kode verifikasi 6 digit yang telah dikirimkan ke email Anda.'}
+                        </p>
+                        <form onSubmit={handleVerifyOtp} className="space-y-6">
+                            <div>
+                                <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700 sr-only">Kode OTP:</label>
+                                <div className="flex justify-center gap-2">
+                                    {Array.from({ length: 6 }).map((_, index) => (
+                                        <input
+                                            key={index}
+                                            type="text"
+                                            maxLength="1"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={otpCode[index] || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/[^0-9]/g, '');
+                                                const newOtpCode = otpCode.split('');
+                                                if (value === '') {
+                                                    newOtpCode[index] = '';
+                                                    setOtpCode(newOtpCode.join(''));
+                                                    if (index > 0) {
+                                                        e.target.previousSibling?.focus();
+                                                    }
+                                                } else if (value.length === 1) {
+                                                    newOtpCode[index] = value;
+                                                    setOtpCode(newOtpCode.join(''));
+                                                    if (index < 5) {
+                                                        e.target.nextSibling?.focus();
+                                                    }
+                                                }
+                                                if (fieldErrors.otpCode) {
+                                                    setFieldErrors(prev => ({ ...prev, otpCode: undefined }));
+                                                }
+                                            }}
+                                            onFocus={(e) => e.target.select()}
+                                            className={`w-12 h-12 text-center text-2xl font-bold rounded-md border ${
+                                                fieldErrors.otpCode ? 'border-red-500' : 'border-gray-300'
+                                            } shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50`}
+                                            required
+                                        />
+                                    ))}
+                                </div>
+                                {fieldErrors.otpCode && <p className="text-red-500 text-xs mt-2 text-center">{fieldErrors.otpCode}</p>}
+                            </div>
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => { setStep(2); setFieldErrors({}); }}
+                                    className="w-full md:w-auto px-5 py-3 rounded-md font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
+                                >
+                                    &larr; Ubah Data
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={`w-full md:w-auto px-5 py-3 rounded-md font-semibold text-white ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} transition-colors duration-200`}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Memverifikasi...' : 'Verifikasi & Dapatkan Antrian'}
+                                </button>
+                            </div>
+                            <div className="text-center mt-6">
+                                {resendTimer > 0 ? (
+                                    <p className="text-sm text-gray-500">Kirim ulang kode dalam <span className="font-bold text-indigo-600">{resendTimer}</span> detik</p>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleResendOtp}
+                                        className="text-sm text-blue-600 hover:underline disabled:text-gray-400 font-medium"
+                                        disabled={loading}
+                                    >
+                                        Kirim Ulang Kode
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    </div>
+                );
+            // --- KASUS 4 (KONFIRMASI) DIHAPUS DARI KOMPONEN INI ---
             default:
                 return null;
         }
