@@ -1,36 +1,37 @@
-// src/pages/superadmin/ManageServicesPage.jsx
-import React, { useEffect, useState, useRef } from 'react'; // <<< TAMBAHKAN useRef
+import React, { useEffect, useState, useRef } from 'react';
 import DashboardLayout from '../../components/common/DashboardLayout';
 import Modal from '../../components/ui/Modal';
-import ServiceForm from '../../components/forms/ServiceForm'; // Import komponen ServiceForm
-import { getAllServices, createService, updateService, deleteService } from '../../api/services'; // Import fungsi API service
-import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
+import ServiceForm from '../../components/forms/ServiceForm';
+import { getAllServices, createService, updateService, deleteService } from '../../api/services';
+import toast from 'react-hot-toast';
 
 const ManageServicesPage = () => {
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
-    // const [error, setError] = useState(''); // <<< DIHAPUS, diganti toast.error
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editServiceData, setEditServiceData] = useState(null); 
-    const [formError, setFormError] = useState(''); // TETAP ADA, untuk error di dalam modal form
-    const [formLoading, setFormLoading] = useState(false); 
+    const [editServiceData, setEditServiceData] = useState(null);
+    const [formError, setFormError] = useState('');
+    const [formLoading, setFormLoading] = useState(false);
 
-    const effectRan = useRef(false); // <<< BARU: useRef untuk melacak eksekusi useEffect
+    // --- State Paginasi BARU ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(7); // Menampilkan 7 data per halaman
+    // --- Akhir State Paginasi BARU ---
+
+    const effectRan = useRef(false);
 
     // --- Fungsi: Mengambil Data Layanan dari Backend ---
     const fetchServices = async () => {
         setLoading(true);
-        // setError(''); // <<< DIHAPUS
         try {
-            const data = await getAllServices(); // Menggunakan fungsi dari service API
+            const data = await getAllServices();
             setServices(data);
-            return true; // Mengembalikan true jika fetch berhasil
+            return true;
         } catch (err) {
             console.error('Gagal mengambil layanan:', err);
-            // setError(err.response?.data?.message || 'Gagal memuat layanan.'); // <<< DIHAPUS
             const msg = err.response?.data?.message || 'Gagal memuat daftar layanan.';
-            toast.error(msg); // <<< BARU: Toast error
-            return false; // Mengembalikan false jika fetch gagal
+            toast.error(msg);
+            return false;
         } finally {
             setLoading(false);
         }
@@ -38,162 +39,184 @@ const ManageServicesPage = () => {
 
     // --- useEffect: Memicu Pengambilan Data Layanan Saat Komponen Dimuat ---
     useEffect(() => {
-        // DEBUGGING: Log setiap kali useEffect dieksekusi
-        console.log('[ManageServicesPage] useEffect (loadServices) triggered');
-
         const loadServices = async () => {
-            const success = await fetchServices(); // Panggil fetchServices
+            const success = await fetchServices();
             if (success) {
-                console.log('[ManageServicesPage] loadServices successful, attempting to show toast'); // DEBUGGING
-                toast.success('Daftar layanan berhasil dimuat!'); // <<< BARU: Panggil toast di sini hanya jika sukses
+                toast.success('Daftar layanan berhasil dimuat!');
             }
         };
 
-        // Menggunakan effectRan.current untuk memastikan loadServices hanya dijalankan sekali per mount
-        if (effectRan.current === false) { 
+        if (effectRan.current === false) {
             loadServices();
-            effectRan.current = true; 
+            effectRan.current = true;
         }
-        
-        // Cleanup function (tidak relevan untuk kasus ini, tapi praktik baik)
-        return () => {
-            console.log('[ManageServicesPage] useEffect cleanup triggered'); // DEBUGGING
-        };
-    }, []); 
+    }, []);
 
-    // Buka modal untuk tambah layanan
+    // --- Logika Paginasi BARU ---
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentServices = services.slice(indexOfFirstItem, indexOfLastItem);
+
+    const totalPages = Math.ceil(services.length / itemsPerPage);
+
+    const handleNextPage = () => {
+        setCurrentPage(prevPage => Math.min(prevPage + 1, totalPages));
+    };
+
+    const handlePrevPage = () => {
+        setCurrentPage(prevPage => Math.max(prevPage - 1, 1));
+    };
+    // --- Akhir Logika Paginasi BARU ---
+
     const handleAddService = () => {
-        setEditServiceData(null); 
-        setFormError(''); 
-        setIsModalOpen(true); 
+        setEditServiceData(null);
+        setFormError('');
+        setIsModalOpen(true);
     };
 
-    // Buka modal untuk edit layanan
     const handleEditService = (service) => {
-        setEditServiceData(service); 
-        setFormError(''); 
-        setIsModalOpen(true); 
+        setEditServiceData(service);
+        setFormError('');
+        setIsModalOpen(true);
     };
 
-    // Tutup modal
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditServiceData(null);
-        setFormError(''); 
+        setFormError('');
     };
 
-    // Submit form (Add atau Edit)
     const handleSubmitService = async (formData) => {
         setFormLoading(true);
-        setFormError(''); 
+        setFormError('');
         try {
             if (editServiceData) {
-                // Mode Edit
-                await updateService(editServiceData.id, formData); 
-                toast.success('Layanan berhasil diperbarui!'); // <<< BARU: Toast sukses
+                await updateService(editServiceData.id, formData);
+                toast.success('Layanan berhasil diperbarui!');
             } else {
-                // Mode Add
-                await createService(formData); 
-                toast.success('Layanan baru berhasil ditambahkan!'); // <<< BARU: Toast sukses
+                await createService(formData);
+                toast.success('Layanan baru berhasil ditambahkan!');
             }
-            await fetchServices(); // Refresh daftar layanan setelah operasi
-            handleCloseModal(); // Tutup modal setelah sukses
+            await fetchServices();
+            handleCloseModal();
         } catch (err) {
             console.error('Gagal menyimpan layanan:', err);
-            setFormError(err.response?.data?.message || 'Gagal menyimpan layanan.'); // TETAP ADA, untuk error di dalam modal
-            toast.error(err.response?.data?.message || 'Gagal menyimpan layanan.'); // <<< BARU: Toast error
+            setFormError(err.response?.data?.message || 'Gagal menyimpan layanan.');
+            toast.error(err.response?.data?.message || 'Gagal menyimpan layanan.');
         } finally {
             setFormLoading(false);
         }
     };
 
-    // Hapus Layanan
     const handleDeleteService = async (serviceId) => {
         if (window.confirm('Apakah Anda yakin ingin menghapus layanan ini? Tindakan ini tidak dapat dibatalkan.')) {
             try {
-                await deleteService(serviceId); // Menggunakan fungsi deleteService
-                toast.success('Layanan berhasil dihapus!'); // <<< BARU: Toast sukses
-                await fetchServices(); // Refresh daftar layanan setelah hapus
+                await deleteService(serviceId);
+                toast.success('Layanan berhasil dihapus!');
+                await fetchServices();
             } catch (err) {
                 console.error('Gagal menghapus layanan:', err);
-                // setError(err.response?.data?.message || 'Gagal menghapus layanan.'); // <<< DIHAPUS
-                toast.error(err.response?.data?.message || 'Gagal menghapus layanan.'); // <<< BARU: Toast error
+                toast.error(err.response?.data?.message || 'Gagal menghapus layanan.');
             }
         }
     };
 
-    // DEBUGGING: Log setiap kali komponen dirender
-    console.log('[ManageServicesPage] Component Render');
-
     return (
         <DashboardLayout title="Manage Services">
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">Daftar Layanan</h2>
+            <div className="bg-white p-8 rounded-2xl shadow-2xl transition-all duration-300 ease-in-out">
+                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                    <h2 className="text-2xl font-bold text-gray-800">Daftar Layanan</h2>
                     <button
                         onClick={handleAddService}
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200"
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-xl transition duration-300 transform hover:scale-105"
                     >
                         + Tambah Layanan Baru
                     </button>
                 </div>
 
-                {loading && <p className="text-blue-500 text-center">Memuat layanan...</p>}
-                {/* Error global dari fetchServices tidak lagi ditampilkan di sini, melainkan di toast */}
-                {/* {error && <p className="text-red-500 text-center">{error}</p>} */} 
-
-                {!loading && ( // Tampilkan tabel hanya jika tidak dalam kondisi loading
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Layanan</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prefix</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimasi Durasi (menit)</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deskripsi</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {services.length === 0 && !loading ? (
-                                    <tr>
-                                        <td colSpan="6" className="px-6 py-4 text-center text-gray-500">Tidak ada layanan ditemukan.</td>
-                                    </tr>
-                                ) : (
-                                    services.map((service, index) => (
-                                        <tr key={service.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{service.service_name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{service.service_prefix}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{service.estimated_duration_minutes}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-700">{service.description || '-'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${service.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                    {service.is_active ? 'Active' : 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button
-                                                    onClick={() => handleEditService(service)}
-                                                    className="text-indigo-600 hover:text-indigo-900 mr-4"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteService(service.id)}
-                                                    className="text-red-600 hover:text-red-900"
-                                                >
-                                                    Hapus
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                {loading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
+                        <p className="ml-4 text-blue-500 text-lg">Memuat layanan...</p>
                     </div>
+                ) : (
+                    <>
+                        {/* Tabel Layanan */}
+                        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-lg">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">No</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Nama Layanan</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Prefix</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Durasi (menit)</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Deskripsi</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {currentServices.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" className="px-6 py-12 text-center text-gray-500 text-lg font-medium">Tidak ada layanan ditemukan di halaman ini.</td>
+                                        </tr>
+                                    ) : (
+                                        currentServices.map((service, index) => (
+                                            <tr key={service.id} className="hover:bg-gray-50 transition-colors duration-150">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{indexOfFirstItem + index + 1}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{service.service_name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{service.service_prefix}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{service.estimated_duration_minutes}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{service.description || '-'}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${service.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {service.is_active ? 'Aktif' : 'Nonaktif'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleEditService(service)}
+                                                        className="text-blue-600 hover:text-blue-900 mr-4 transition-colors duration-200"
+                                                        title="Edit Layanan"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteService(service.id)}
+                                                        className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                                                        title="Hapus Layanan"
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Kontrol Paginasi */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center items-center mt-6 space-x-4">
+                                <button
+                                    onClick={handlePrevPage}
+                                    disabled={currentPage === 1 || loading}
+                                    className="px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                >
+                                    &larr; Sebelumnya
+                                </button>
+                                <span className="text-gray-700 font-medium">Halaman {currentPage} dari {totalPages}</span>
+                                <button
+                                    onClick={handleNextPage}
+                                    disabled={currentPage === totalPages || loading}
+                                    className="px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                >
+                                    Berikutnya &rarr;
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -208,7 +231,7 @@ const ManageServicesPage = () => {
                     initialData={editServiceData}
                     isEditMode={!!editServiceData}
                     loading={formLoading}
-                    error={formError} // Pesan error dari form modal tetap ditampilkan di dalam modal
+                    error={formError}
                 />
             </Modal>
         </DashboardLayout>

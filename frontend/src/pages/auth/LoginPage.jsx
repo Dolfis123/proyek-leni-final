@@ -1,10 +1,11 @@
 // src/pages/auth/LoginPage.jsx
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom"; // <<< TAMBAHKAN Link
+import { useNavigate, Link } from "react-router-dom";
 import { login } from "../../api/auth";
 import toast from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
+// Pastikan path gambar sudah benar
 import logo from "../../images/logo/logo.png";
 import bgImage from "../../images/logo/pnMkw.jpeg";
 
@@ -15,7 +16,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // --- Handler: Proses Login ---
+  // Handler untuk proses login
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -28,7 +29,6 @@ const LoginPage = () => {
 
     try {
       const data = await login(username, password);
-      console.log("Login successful:", data);
       toast.success("Login berhasil!");
 
       if (data.user.role === "super_admin") {
@@ -48,56 +48,76 @@ const LoginPage = () => {
     }
   };
 
-  // --- Render Komponen ---
+  // Komponen input yang bisa digunakan kembali (opsional)
+  const FormInput = ({ label, id, type, value, onChange, placeholder, ...props }) => (
+    <div>
+      <label htmlFor={id} className="block text-gray-700 font-semibold mb-2 text-sm">
+        {label}
+      </label>
+      <input
+        type={type}
+        id={id}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="w-full px-5 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 shadow-sm"
+        required
+        {...props}
+      />
+    </div>
+  );
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center px-4"
+      className="min-h-screen flex items-center justify-center bg-cover bg-center px-4 py-12"
       style={{ backgroundImage: `url(${bgImage})` }}
     >
       <Helmet>
         <title>Login - Sistem Antrian PN Manokwari</title>
-        <meta
-          name="description"
-          content="Halaman login sistem antrian online Pengadilan Negeri Manokwari untuk Admin dan Super Admin."
-        />
+        <meta name="description" content="Halaman login sistem antrian online Pengadilan Negeri Manokwari untuk Admin dan Super Admin." />
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      <div className="w-full max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-8">
-        <div className="text-center mb-6">
+      {/* Container utama card login */}
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-md shadow-2xl rounded-3xl p-10 transform transition-all duration-500 ease-in-out border border-white/40">
+        
+        {/* Header dengan logo dan judul */}
+        <div className="text-center mb-8">
           <img
             src={logo}
             alt="Logo Pengadilan Negeri Manokwari"
-            className="mx-auto w-28 h-28 rounded-full border-4 border-white shadow-md object-cover"
+            className="mx-auto w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover transform transition-all duration-300 hover:scale-105"
+            style={{ filter: 'drop-shadow(0 0 10px rgba(100, 116, 139, 0.5))' }}
           />
-          <h2 className="mt-4 text-2xl font-extrabold text-gray-800 dark:text-white leading-tight">
-            Sistem Antrian Online
-            <br />
-            Pengadilan Negeri Manokwari
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 leading-tight">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+              Sistem Antrian Online
+            </span>
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 text-center">
-            Masuk ke panel Admin / Super Admin untuk mengelola sistem antrian.
+          <h3 className="text-xl font-bold text-gray-700">
+            Pengadilan Negeri Manokwari
+          </h3>
+          <p className="mt-3 text-sm text-gray-600">
+            Masuk ke panel admin untuk mengelola sistem.
           </p>
         </div>
 
+        {/* Formulir Login */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="username" className="block text-gray-700 dark:text-gray-200 font-semibold mb-1">
-              Username
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Masukkan username"
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
-              required
-            />
-          </div>
+          
+          {/* Input Username (menggunakan komponen FormInput) */}
+          <FormInput
+            label="Username"
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Masukkan username"
+          />
 
+          {/* Input Password dengan show/hide */}
           <div>
-            <label htmlFor="password" className="block text-gray-700 dark:text-gray-200 font-semibold mb-1">
+            <label htmlFor="password" className="block text-gray-700 font-semibold mb-2 text-sm">
               Password
             </label>
             <div className="relative">
@@ -107,11 +127,11 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Masukkan password"
-                className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+                className="w-full px-5 py-3 pr-12 rounded-xl border border-gray-300 bg-gray-100 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 shadow-sm"
                 required
               />
               <div
-                className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 transition duration-200"
+                className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700 transition duration-200"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? "🙈" : "👁️"}
@@ -119,30 +139,40 @@ const LoginPage = () => {
             </div>
           </div>
 
+          {/* Tombol Submit */}
           <button
             type="submit"
-            className={`w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition duration-200 font-semibold shadow-lg
-                         ${loading ? 'opacity-70 cursor-not-allowed' : 'transform hover:scale-105'}`}
+            className={`w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-xl transition-all duration-300
+                         ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105'}`}
             disabled={loading}
           >
             {loading ? "Memuat..." : "Masuk"}
           </button>
         </form>
 
-        {/* --- BARU: Tambahan Link ke Status Display dan Register Queue --- */}
-        <div className="mt-6 text-center text-sm">
-          <Link to="/status-display" className="text-blue-500 dark:text-blue-400 hover:underline font-medium">
-            Lihat Status Antrian Publik
-          </Link>
-          <span className="mx-2 text-gray-400">|</span>
-          <Link to="/register-queue" className="text-purple-500 dark:text-purple-400 hover:underline font-medium">
-            Daftar Antrian Baru
-          </Link>
+        {/* Tautan navigasi */}
+        <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+            <p className="text-gray-600 mb-3 text-sm font-medium">
+                Cari status antrian Anda atau daftar antrian baru:
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <Link
+                    to="/status-display"
+                    className="flex-1 w-full px-6 py-2.5 rounded-lg bg-gray-200 text-gray-800 font-semibold transition-all duration-200 hover:bg-gray-300 transform hover:scale-105"
+                >
+                    Status Publik
+                </Link>
+                <Link
+                    to="/register-queue"
+                    className="flex-1 w-full px-6 py-2.5 rounded-lg bg-gray-200 text-gray-800 font-semibold transition-all duration-200 hover:bg-gray-300 transform hover:scale-105"
+                >
+                    Daftar Antrian
+                </Link>
+            </div>
         </div>
-        {/* --- AKHIR BARU --- */}
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-8 text-center text-xs text-gray-500">
           © {new Date().getFullYear()} Pengadilan Negeri Manokwari
         </div>
       </div>

@@ -315,15 +315,23 @@ const QueueRegistrationPage = () => {
                                 </button>
                             </div>
                         )}
-                        <div className="text-center mt-8">
-                            <Link to="/login" className="text-indigo-600 hover:underline font-medium">
-                                Sudah punya akun? Login di sini
-                            </Link>
-                            <span className="mx-3 text-gray-400">|</span>
-                            <Link to="/status-display" className="text-blue-600 hover:underline font-medium">
-                                Lihat Status Antrian Publik
-                            </Link>
-                        </div>
+                   <div className="text-center mt-8 pt-6 border-t border-gray-200">
+    <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+        <Link
+            to="/login"
+            className="w-full sm:w-auto px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors duration-200 shadow-md transform hover:scale-105"
+        >
+            Sudah punya akun? Login di sini
+        </Link>
+        <span className="text-gray-400 font-bold hidden sm:block">|</span>
+        <Link
+            to="/status-display"
+            className="w-full sm:w-auto px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors duration-200 shadow-md transform hover:scale-105"
+        >
+            Lihat Status Antrian Publik
+        </Link>
+    </div>
+</div>
                     </>
                 );
             case 2: // Langkah 2: Mengisi Data Diri & Meminta OTP

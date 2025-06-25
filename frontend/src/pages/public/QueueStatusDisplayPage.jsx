@@ -96,34 +96,52 @@ const QueueStatusDisplayPage = () => {
                 <p className="text-2xl font-semibold text-purple-200">Sistem Antrian Real-time</p>
             </header>
 
-            <div className="mb-8 p-4 bg-white bg-opacity-20 rounded-lg shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
-                <input
-                    type="text"
-                    placeholder="Cari Layanan Antrian..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1);
-                    }}
-                    // --- PERUBAHAN DI SINI: Tambahkan kelas text-black ---
-                    className="w-full md:w-1/2 p-3 rounded-lg border border-gray-300 text-black focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    // --- AKHIR PERUBAHAN ---
-                />
-                <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full md:w-auto">
-                    <Link
-                        to="/login"
-                        className="w-full text-center md:w-auto px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors duration-200"
-                    >
-                        Login Admin
-                    </Link>
-                    <Link
-                        to="/register-queue"
-                        className="w-full text-center md:w-auto px-5 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors duration-200"
-                    >
-                        Daftar Antrian Baru
-                    </Link>
-                </div>
-            </div>
+    <div className="mb-10 p-6 bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-white/30">
+    {/* Input Pencarian */}
+    <div className="relative w-full md:w-1/2">
+        <input
+            type="text"
+            placeholder="Cari Layanan Antrian..."
+            value={searchQuery}
+            onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+            }}
+            className="w-full pl-12 pr-4 py-3 rounded-xl border border-transparent bg-white/80 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-medium"
+        />
+        {/* Ikon Pencarian */}
+        <svg
+            className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            ></path>
+        </svg>
+    </div>
+    
+    {/* Tautan Navigasi sebagai Tombol */}
+    <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+        <Link
+            to="/login"
+            className="w-full text-center md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold tracking-wide transition-all duration-300 transform hover:scale-105 shadow-xl"
+        >
+            Login Admin
+        </Link>
+        <Link
+            to="/register-queue"
+            className="w-full text-center md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold tracking-wide transition-all duration-300 transform hover:scale-105 shadow-xl"
+        >
+            Daftar Antrian Baru
+        </Link>
+    </div>
+</div>
 
             <main>
                 {currentServices.length === 0 && !loading ? (
