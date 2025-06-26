@@ -8,6 +8,6 @@ export default defineConfig({
     port: 5174, // Pastikan port sesuai
     // --- TAMBAHKAN BAGIAN INI ---
     host: '0.0.0.0', // Ini penting agar bisa diakses dari luar localhost
-    allowedHosts: ['skydance.life', 'www.skydance.life'],
+    allowedHosts: ['https://pengadilannegerimanokwari.pro', 'www.https://pengadilannegerimanokwari.pro'],
   }
 })
