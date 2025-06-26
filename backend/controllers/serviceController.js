@@ -3,7 +3,7 @@ const db = require('../models'); // Mengimpor semua model Sequelize
 const Service = db.Service; // Mengambil model Service
 
 // Publik: Mendapatkan daftar layanan aktif
-const getActiveServices = async (req, res) => {
+const getActiveServicesPublic  = async (req, res) => {
     try {
         const services = await Service.findAll({
             where: { is_active: true },
@@ -121,7 +121,7 @@ const deleteService = async (req, res) => {
 };
 
 module.exports = {
-    getActiveServices,
+    getActiveServicesPublic,
     getAllServices,
     createService,
     updateService,

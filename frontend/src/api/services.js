@@ -1,7 +1,7 @@
 // src/api/services.js
 import authApi from './auth'; // Menggunakan instance axios yang sudah dikonfigurasi dengan token
 
-export const getActiveServices = async () => {
+export const getActiveServicesPublic = async () => {
     try {
         const response = await authApi.get('/services/active');
         return response.data;
