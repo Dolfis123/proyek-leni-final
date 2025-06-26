@@ -1,17 +1,30 @@
-// vite.config.js
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+// import plugin-plugin lain jika ada, contoh: import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  // Ini adalah konfigurasi utama Vite
+  // ... (konfigurasi plugin lainnya, seperti plugins: [react()] jika Anda menggunakan React)
+
   server: {
-    port: 5174, // Pastikan port tetap 5174
-    host: true, // <<< BARU: Izinkan host eksternal
-    // <<< BARU: Izinkan host spesifik ini >>>
+    // Ini adalah port yang digunakan Vite secara internal saat development/preview
+    // Pastikan ini cocok dengan port yang digunakan Nginx untuk meneruskan ke frontend
+    port: 5174, 
+
+    // Penting: Izinkan server Vite mendengarkan di semua alamat IP (termasuk dari Nginx)
+    // Jika tidak ada ini, Vite mungkin hanya mendengarkan di localhost, 
+    // sehingga Nginx tidak bisa terhubung.
+    host: '0.0.0.0', 
+
+    // --- TAMBAHKAN ATAU PASTIKAN BARIS INI ADA DAN BENAR ---
+    // Daftar hostname yang diizinkan untuk mengakses server Vite
     allowedHosts: [
-      'https://skydance.life',
-      'https://www.skydance.life'
-    ]
-  }
-});
+      'skydance.life',
+      'www.skydance.life',
+      // Jika Anda juga mengakses dari IP server langsung (misal saat debugging)
+      // Anda bisa menambahkannya di sini juga, contoh:
+      // '31.97.66.50'
+    ],
+  },
+
+  // ... (konfigurasi build atau lainnya)
+})
