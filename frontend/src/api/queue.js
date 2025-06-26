@@ -2,7 +2,7 @@
 import axios from 'axios';
 import authApi from './auth';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://skydance.life/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://pengadilannegerimanokwari.pro//api';
 
 const publicApi = axios.create({
     baseURL: API_URL,
