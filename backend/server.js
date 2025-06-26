@@ -32,7 +32,7 @@ console.log(`Backend PORT: ${PORT}`);
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', // Mengizinkan origin yang didefinisikan di .env
+        origin: process.env.FRONTEND_URL || 'https://skydance.life', // Mengizinkan origin yang didefinisikan di .env
         methods: ['GET', 'POST'], // Metode HTTP yang diizinkan
         credentials: true // Mengizinkan pengiriman kredensial (cookies, header otorisasi)
     }
@@ -44,7 +44,7 @@ queueController.setIoInstance(io);
 
 // Middlewares
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', // Mengizinkan origin yang didefinisikan di .env untuk permintaan HTTP
+    origin: process.env.FRONTEND_URL || 'https://skydance.life', // Mengizinkan origin yang didefinisikan di .env untuk permintaan HTTP
     credentials: true
 }));
 app.use(bodyParser.json()); // Untuk parsing JSON body
