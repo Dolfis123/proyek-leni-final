@@ -9,20 +9,26 @@ require('dotenv').config();
 
 // Import database dari models/index.js (Sequelize)
 const db = require('./models');
+const { Op } = require('sequelize'); // Diperlukan untuk cron job update
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const systemRoutes = require('./routes/systemRoutes');
-const queueRoutes = require('./routes/queueRoutes'); // <<< BARU
-
+const queueRoutes = require('./routes/queueRoutes');
 
 // Import controller queue untuk set Io instance
-const queueController = require('./controllers/queueController'); // Pastikan ini diimpor
-
+const queueController = require('./controllers/queueController');
 
 const app = express();
+
+// --- PENTING: TAMBAHKAN BARIS INI ---
+// Mengaktifkan trust proxy agar Express mengenali bahwa ia berada di belakang Nginx.
+// Ini penting untuk penanganan header Host, X-Forwarded-For, X-Forwarded-Proto
+app.enable('trust proxy'); 
+// --- AKHIR TAMBAHAN ---
+
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
@@ -36,9 +42,7 @@ const io = new Server(server, {
 });
 
 // Set instance Socket.IO di controller
-// PENTING: Panggil ini di sini agar 'io' tersedia di controller
 queueController.setIoInstance(io);
-
 
 // Middlewares
 app.use(cors({
@@ -59,8 +63,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/system', systemRoutes);
-app.use('/api/queue', queueRoutes); // <<< BARU
-
+app.use('/api/queue', queueRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -77,29 +80,25 @@ io.on('connection', (socket) => {
 });
 
 // --- Scheduler (Cron Job) untuk Reset Antrian Harian ---
-// Sekarang kita bisa mengaktifkannya kembali dan mengadaptasinya untuk Sequelize
 const setupDailyResetCron = async () => {
     try {
         const SystemSetting = db.SystemSetting;
-        const Queue = db.Queue; // Ambil model Queue
-        const Service = db.Service; // Ambil model Service (jika perlu emitServiceUpdate, dll)
+        const Queue = db.Queue;
+        const Service = db.Service;
 
-        if (!SystemSetting || !Queue || !Service) { // Pastikan semua model yang dibutuhkan siap
+        if (!SystemSetting || !Queue || !Service) {
             console.error('CRON: Required models (SystemSetting, Queue, Service) not available yet for cron job setup. Retrying in 5 seconds...');
-            setTimeout(setupDailyResetCron, 5000); // Coba lagi setelah 5 detik
+            setTimeout(setupDailyResetCron, 5000);
             return;
         }
 
         let resetSetting = await SystemSetting.findOne({ where: { setting_key: 'daily_reset_time' } });
-        let resetTime = resetSetting ? resetSetting.setting_value : '00:00'; // Default jika tidak ada di DB
+        let resetTime = resetSetting ? resetSetting.setting_value : '00:00';
 
         const [hour, minute] = resetTime.split(':');
-        const cronSchedule = `${minute} ${hour} * * *`; // Contoh: '0 0 * * *' untuk 00:00
+        const cronSchedule = `${minute} ${hour} * * *`;
 
         console.log(`Daily queue reset scheduled for ${resetTime} WIT.`);
-
-        // Hentikan jadwal yang sudah ada jika ada untuk menghindari duplikasi
-        // cron.getTasks().forEach(task => task.stop()); // Hanya jika ingin menghentikan semua task sebelumnya
 
         cron.schedule(cronSchedule, async () => {
             console.log(`[CRON JOB] Running daily queue reset at ${new Date().toLocaleString()}`);
@@ -107,24 +106,18 @@ const setupDailyResetCron = async () => {
                 const now = new Date();
                 const formattedToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-                // Tandai semua antrian hari sebelumnya yang belum selesai sebagai 'expired'
                 await Queue.update(
                     { status: 'expired' },
                     {
                         where: {
-                            queue_date: { [Op.lt]: formattedToday }, // Kurang dari tanggal hari ini
+                            queue_date: { [Op.lt]: formattedToday },
                             status: { [Op.in]: ['pending_otp', 'waiting', 'calling', 'on_hold', 'missed', 'recalled'] }
                         }
                     }
                 );
                 console.log('Previous day active queues marked as expired.');
 
-                // Emit update global setelah reset
-                // Karena emitQueueUpdate memerlukan controller, pastikan controller sudah diimport dan io diset.
-                // Jika ingin emit update global, kita perlu memanggilnya dari sini.
-                // emitQueueUpdate(); // Ini akan dipanggil di server.js, bukan di controller
-                // Untuk memanggil emitQueueUpdate dari sini, kita bisa memanggil fungsi di controller
-                if (queueController && queueController.emitQueueUpdate) { // Panggil emitQueueUpdate dari controller
+                if (queueController && queueController.emitQueueUpdate) {
                     await queueController.emitQueueUpdate();
                 } else {
                     console.warn('CRON: emitQueueUpdate not available in queueController.');
@@ -140,13 +133,11 @@ const setupDailyResetCron = async () => {
     }
 };
 
-
 // Sinkronisasi database Sequelize dan memulai server
 db.sequelize.sync({ alter: true })
   .then(() => {
     console.log('Database synced successfully!');
-    // Panggil setup cron job DI SINI setelah database siap
-    setupDailyResetCron(); // <<< AKTIFKAN LAGI
+    setupDailyResetCron();
 
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

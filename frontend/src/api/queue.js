@@ -2,7 +2,7 @@
 import axios from 'axios';
 import authApi from './auth';
 
-const API_URL = 'https://skydance.life/api';
+const API_URL = 'http://localhost:5000/api';
 
 const publicApi = axios.create({
     baseURL: API_URL,
