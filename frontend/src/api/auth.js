@@ -1,7 +1,7 @@
 // src/api/services.js
 import axios from 'axios';
 import authApi from './auth'; 
-
+import { useNavigate, Link } from "react-router-dom";
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 console.log(`[DEBUG - services.js] API_URL yang digunakan: ${API_URL}`);
@@ -155,6 +155,21 @@ export const getQueueReport = async (startDate, endDate, serviceId = null) => {
         console.error('[ERROR - services.js] getQueueReport gagal:', error.response?.data || error.message);
         throw error.response?.data || error.message;
     }
+};
+export const login = async (username, password) => {
+    try {
+        const response = await authApi.post('/auth/login', { username, password });
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user)); 
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+};
+
+export const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 };
 
 export default publicApi; 
