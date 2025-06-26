@@ -42,11 +42,20 @@ const io = new Server(server, {
 // PENTING: Panggil ini di sini agar 'io' tersedia di controller
 queueController.setIoInstance(io);
 
-// Middlewares
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://skydance.life', // Mengizinkan origin yang didefinisikan di .env untuk permintaan HTTP
-    credentials: true
-}));
+// // Middlewares
+// app.use(cors({
+//     origin: process.env.FRONTEND_URL || 'https://skydance.life', // Mengizinkan origin yang didefinisikan di .env untuk permintaan HTTP
+//     credentials: true
+// }));
+
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'https://skydance.life', 'https://www.skydance.life'], // Daftar origin yang diizinkan
+    methods: ['GET', 'POST'],
+    credentials: true,
+  })
+);
+
 app.use(bodyParser.json()); // Untuk parsing JSON body
 app.use(bodyParser.urlencoded({ extended: true })); // Untuk parsing URL-encoded body
 
