@@ -2,7 +2,7 @@
 import axios from 'axios';
 import authApi from './auth';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://skydance.life/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const publicApi = axios.create({
     baseURL: API_URL,
@@ -13,7 +13,7 @@ const publicApi = axios.create({
 
 export const getActiveServicesPublic = async () => {
     try {
-        const response = await publicApi.get('/queue/services/active');
+        const response = await publicApi.get('/services/active');
         return response.data;
     } catch (error) {
         throw error.response?.data || error.message;
