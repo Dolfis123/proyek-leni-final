@@ -1,13 +1,17 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173, // Pastikan port sesuai
-    // --- TAMBAHKAN BAGIAN INI ---
-    host: '0.0.0.0', // Ini penting agar bisa diakses dari luar localhost
-    allowedHosts: ['https://pengadilannegerimanokwari.pro', 'www.https://pengadilannegerimanokwari.pro'],
+    port: 5174, // Pastikan port tetap 5174
+    host: true, // <<< BARU: Izinkan host eksternal
+    // <<< BARU: Izinkan host spesifik ini >>>
+    allowedHosts: [
+      'pengadilannegerimanokwari.pro',
+      'www.pengadilannegerimanokwari.pro'
+    ]
   }
-})
+});
