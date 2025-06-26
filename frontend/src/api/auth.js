@@ -1,8 +1,7 @@
 // src/api/auth.js
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'; // Base URL backend
-
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 const authApi = axios.create({
     baseURL: API_URL,
     headers: {
