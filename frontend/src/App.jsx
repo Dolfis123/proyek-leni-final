@@ -25,6 +25,7 @@ import MyQueueStatusPage from './pages/public/MyQueueStatusPage';
 
 // <<< PASTIKAN INI DIIMPORT: Komponen ProtectedRoute untuk melindungi rute >>>
 import ProtectedRoute from './components/common/ProtectedRoute'; 
+import Test from './pages/public/Test';
 
 
 function App() {
@@ -39,7 +40,9 @@ function App() {
             <Route path="/login" element={<LoginPage />} /> {/* Halaman Login Admin/Super Admin */}
             
             {/* Rute default: Ketika pengguna mengakses root URL (/), arahkan ke halaman pendaftaran antrian */}
-            <Route path="/" element={<Navigate to="/register-queue" replace />} />
+            {/* <Route path="/" element={<Navigate to="/register-queue" replace />} /> */}
+                      <Route path="/" element={<Test />} /> {/* Halaman Status Antrian Pribadi (untuk pengguna cek status) */}
+
 
 
             {/* --- Rute Privat untuk Super Admin --- */}
