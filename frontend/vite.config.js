@@ -10,8 +10,8 @@ export default defineConfig({
     host: true, // <<< BARU: Izinkan host eksternal
     // <<< BARU: Izinkan host spesifik ini >>>
     allowedHosts: [
-      'pengadilannegerimanokwari.pro',
-      'www.pengadilannegerimanokwari.pro'
+      'https://skydance.life',
+      'https://www.skydance.life'
     ]
   }
 });
