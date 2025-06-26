@@ -8,18 +8,18 @@ export default defineConfig({
   server: {
     // Ini adalah port yang digunakan Vite secara internal saat development/preview
     // Pastikan ini cocok dengan port yang digunakan Nginx untuk meneruskan ke frontend
-    port: 5174, 
+    port: 5174,
 
     // Penting: Izinkan server Vite mendengarkan di semua alamat IP (termasuk dari Nginx)
-    // Jika tidak ada ini, Vite mungkin hanya mendengarkan di localhost, 
+    // Jika tidak ada ini, Vite mungkin hanya mendengarkan di localhost,
     // sehingga Nginx tidak bisa terhubung.
-    host: '0.0.0.0', 
+    host: '0.0.0.0',
 
-    // --- TAMBAHKAN ATAU PASTIKAN BARIS INI ADA DAN BENAR ---
+    // --- PERBAIKAN DI SINI ---
     // Daftar hostname yang diizinkan untuk mengakses server Vite
     allowedHosts: [
-      'https://www.skydance.life',
-      'https://www.skydance.life',
+      'skydance.life',       // HANYA HOSTNAME, tanpa http/https
+      'www.skydance.life',   // HANYA HOSTNAME, tanpa http/https
       // Jika Anda juga mengakses dari IP server langsung (misal saat debugging)
       // Anda bisa menambahkannya di sini juga, contoh:
       // '31.97.66.50'
