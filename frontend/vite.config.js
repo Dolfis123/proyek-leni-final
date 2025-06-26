@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5174, // Pastikan port sesuai
+    port: 5173, // Pastikan port sesuai
     // --- TAMBAHKAN BAGIAN INI ---
     host: '0.0.0.0', // Ini penting agar bisa diakses dari luar localhost
     allowedHosts: ['https://pengadilannegerimanokwari.pro', 'www.https://pengadilannegerimanokwari.pro'],
