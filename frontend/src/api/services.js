@@ -1,5 +1,5 @@
 // src/api/services.js
-import authApi from '../../api/auth'; // Menggunakan instance axios yang sudah dikonfigurasi dengan token
+import authApi from './auth'; // Menggunakan instance axios yang sudah dikonfigurasi dengan token
 
 export const getActiveServices = async () => {
     try {
