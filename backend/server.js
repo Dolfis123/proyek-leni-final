@@ -29,10 +29,9 @@ const PORT = process.env.PORT || 5000;
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'https://skydance.life',
+        origin: process.env.FRONTEND_URL || 'https://www.skydance.life',
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
-
     }
 });
 
@@ -43,7 +42,7 @@ queueController.setIoInstance(io);
 
 // Middlewares
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://skydance.life',
+    origin: process.env.FRONTEND_URL || 'https://www.skydance.life',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));

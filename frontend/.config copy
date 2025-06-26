@@ -18,7 +18,7 @@ export default defineConfig({
     // --- TAMBAHKAN ATAU PASTIKAN BARIS INI ADA DAN BENAR ---
     // Daftar hostname yang diizinkan untuk mengakses server Vite
     allowedHosts: [
-      'https://www.skydance.life',
+      'https://skydance.life',
       'https://www.skydance.life',
       // Jika Anda juga mengakses dari IP server langsung (misal saat debugging)
       // Anda bisa menambahkannya di sini juga, contoh:

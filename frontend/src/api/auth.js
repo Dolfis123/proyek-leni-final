@@ -1,12 +1,10 @@
 // src/api/auth.js
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'; // Base URL backend
 
 const authApi = axios.create({
-    baseURL: API_URL, // Ganti dengan API URL yang sesuai
-    timeout: 10000, // Timeout 10 detik
-    withCredentials: true, // Mengizinkan pengiriman cookies
+    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },

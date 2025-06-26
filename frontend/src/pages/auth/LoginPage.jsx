@@ -106,14 +106,34 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           
           {/* Input Username (menggunakan komponen FormInput) */}
-          <FormInput
+         <div>
+            <label htmlFor="password" className="block text-gray-700 font-semibold mb-2 text-sm">
+              Username
+            </label>
+            <div className="relative">
+              <input
+           
+                id="Username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Masukkan username"
+                className="w-full px-5 py-3 pr-12 rounded-xl border border-gray-300 bg-gray-100 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 shadow-sm"
+                required
+              />
+          
+            </div>
+          </div>
+          {/* <FormInput
             label="Username"
             id="username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Masukkan username"
-          />
+               placeholder="Masukkan Username"
+                className="w-full px-5 py-3 pr-12 rounded-xl border border-gray-300 bg-gray-100 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 shadow-sm"
+                required
+          /> */}
 
           {/* Input Password dengan show/hide */}
           <div>

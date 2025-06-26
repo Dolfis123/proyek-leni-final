@@ -8,6 +8,7 @@ import { getCurrentUser } from '../../api/auth'; // Untuk mendapatkan info user 
 import toast from 'react-hot-toast'; // <<< PASTIKAN INI DIIMPORT
 
 const QueueManagementPage = () => {
+    // eslint-disable-next-line no-unused-vars
     const currentUser = getCurrentUser(); // Admin yang sedang login
     const [services, setServices] = useState([]); // Daftar layanan yang tersedia
     const [selectedServiceId, setSelectedServiceId] = useState(''); // ID layanan/loket yang dipilih admin
