@@ -1,7 +1,7 @@
 // src/api/services.js
 import axios from 'axios';
 import authApi from './auth'; 
-import { useNavigate, Link } from "react-router-dom";
+
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 console.log(`[DEBUG - services.js] API_URL yang digunakan: ${API_URL}`);
