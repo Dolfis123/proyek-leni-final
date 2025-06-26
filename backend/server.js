@@ -59,7 +59,7 @@ app.get('/', (req, res) => {
 });
 
 // Use routes
-app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/system', systemRoutes);
