@@ -33,13 +33,13 @@ function App() {
         <Routes>
             {/* --- Rute Publik (Public Routes) --- */}
             {/* Rute ini dapat diakses oleh siapa saja tanpa perlu login */}
-            <Route path="/register-queue" element={<QueueRegistrationPage />} /> {/* Halaman Pendaftaran Antrian */}
+            <Route path="/" element={<QueueRegistrationPage />} /> {/* Halaman Pendaftaran Antrian */}
             <Route path="/status-display" element={<QueueStatusDisplayPage />} /> {/* Halaman Tampilan Status Antrian Publik (untuk display) */}
             <Route path="/my-queue-status" element={<MyQueueStatusPage />} /> {/* Halaman Status Antrian Pribadi (untuk pengguna cek status) */}
             <Route path="/login" element={<LoginPage />} /> {/* Halaman Login Admin/Super Admin */}
             
             {/* Rute default: Ketika pengguna mengakses root URL (/), arahkan ke halaman pendaftaran antrian */}
-            <Route path="/" element={<Navigate to="/register-queue" replace />} />
+            {/* <Route path="/" element={<Navigate to="/register-queue" replace />} /> */}
 
 
             {/* --- Rute Privat untuk Super Admin --- */}
