@@ -4,10 +4,9 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const authApi = axios.create({
-    baseURL: "https://skydance.life/api/auth", // Ganti dengan API URL yang sesuai
+    baseURL: API_URL, // Ganti dengan API URL yang sesuai
     timeout: 10000, // Timeout 10 detik
     withCredentials: true, // Mengizinkan pengiriman cookies
-
     headers: {
         'Content-Type': 'application/json',
     },
@@ -15,7 +14,7 @@ const authApi = axios.create({
 
 export const login = async (username, password) => {
     try {
-        const response = await authApi.post('/login', { username, password });
+        const response = await authApi.post('/auth/login', { username, password });
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user)); 
         return response.data;
