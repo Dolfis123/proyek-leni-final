@@ -30,7 +30,7 @@ app.enable('trust proxy');
 // --- AKHIR TAMBAHAN ---
 
 const server = http.createServer(app);
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5000;
 
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
@@ -59,7 +59,7 @@ app.get('/', (req, res) => {
 });
 
 // Use routes
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/system', systemRoutes);
@@ -88,7 +88,7 @@ const setupDailyResetCron = async () => {
 
         if (!SystemSetting || !Queue || !Service) {
             console.error('CRON: Required models (SystemSetting, Queue, Service) not available yet for cron job setup. Retrying in 5 seconds...');
-            setTimeout(setupDailyResetCron, 5002);
+            setTimeout(setupDailyResetCron, 5000);
             return;
         }
 
