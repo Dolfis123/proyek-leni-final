@@ -35,7 +35,7 @@ const PORT = process.env.PORT || 5000;
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro',
+        origin: [process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', 'http://localhost:5174'],
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }
@@ -46,7 +46,7 @@ queueController.setIoInstance(io);
 
 // Middlewares
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro',
+    origin: [process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', 'http://localhost:5174'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
@@ -54,7 +54,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Basic route
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
     res.send('Welcome to Antrian PN Manokwari Backend API (Sequelize Edition)!');
 });
 

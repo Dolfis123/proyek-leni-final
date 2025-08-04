@@ -3,7 +3,7 @@ Content-Type: application/json
 
 {
     "username": "superadmin",
-    "password": "12345",
+    "password": "admin123",
     "full_name": "Admin Utama Manokwari",
     "email": "superadmin@manokwari.pn"
 }
@@ -14,7 +14,7 @@ Content-Type: application/json
 
 {
     "username": "adminloket1",
-    "password": "123`",
+    "password": "",
     "full_name": "Admin Loket 1",
     "email": "admin1@manokwari.pn",
     "role": "admin"
