@@ -26,7 +26,7 @@ const app = express();
 // --- PENTING: TAMBAHKAN BARIS INI ---
 // Mengaktifkan trust proxy agar Express mengenali bahwa ia berada di belakang Nginx.
 // Ini penting untuk penanganan header Host, X-Forwarded-For, X-Forwarded-Proto
-app.enable('trust proxy'); 
+app.enable('trust proxy');
 // --- AKHIR TAMBAHAN ---
 
 const server = http.createServer(app);
@@ -35,7 +35,7 @@ const PORT = process.env.PORT || 5000;
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'https://www.skydance.life',
+        origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro',
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }
@@ -46,7 +46,7 @@ queueController.setIoInstance(io);
 
 // Middlewares
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://www.skydance.life',
+    origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
@@ -80,7 +80,7 @@ io.on('connection', (socket) => {
 });
 
 // --- Scheduler (Cron Job) untuk Reset Antrian Harian ---
-const setupDailyResetCron = async () => {
+const setupDailyResetCron = async() => {
     try {
         const SystemSetting = db.SystemSetting;
         const Queue = db.Queue;
@@ -100,21 +100,22 @@ const setupDailyResetCron = async () => {
 
         console.log(`Daily queue reset scheduled for ${resetTime} WIT.`);
 
-        cron.schedule(cronSchedule, async () => {
+        cron.schedule(cronSchedule, async() => {
             console.log(`[CRON JOB] Running daily queue reset at ${new Date().toLocaleString()}`);
             try {
                 const now = new Date();
                 const formattedToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-                await Queue.update(
-                    { status: 'expired' },
-                    {
-                        where: {
-                            queue_date: { [Op.lt]: formattedToday },
-                            status: { [Op.in]: ['pending_otp', 'waiting', 'calling', 'on_hold', 'missed', 'recalled'] }
+                await Queue.update({ status: 'expired' }, {
+                    where: {
+                        queue_date: {
+                            [Op.lt]: formattedToday
+                        },
+                        status: {
+                            [Op.in]: ['pending_otp', 'waiting', 'calling', 'on_hold', 'missed', 'recalled']
                         }
                     }
-                );
+                });
                 console.log('Previous day active queues marked as expired.');
 
                 if (queueController && queueController.emitQueueUpdate) {
@@ -127,7 +128,7 @@ const setupDailyResetCron = async () => {
                 console.error('[CRON JOB] Error during daily queue reset:', error);
             }
         });
-        
+
     } catch (error) {
         console.error('Failed to setup daily reset cron job:', error);
     }
@@ -135,17 +136,17 @@ const setupDailyResetCron = async () => {
 
 // Sinkronisasi database Sequelize dan memulai server
 db.sequelize.sync({ alter: true })
-  .then(() => {
-    console.log('Database synced successfully!');
-    setupDailyResetCron();
+    .then(() => {
+        console.log('Database synced successfully!');
+        setupDailyResetCron();
 
-    server.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`Access API at http://localhost:${PORT}`);
-      console.log(`WebSocket server running at http://localhost:${PORT}`);
+        server.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+            console.log(`Access API at http://localhost:${PORT}`);
+            console.log(`WebSocket server running at http://localhost:${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('Failed to sync database:', err);
+        process.exit(1);
     });
-  })
-  .catch(err => {
-    console.error('Failed to sync database:', err);
-    process.exit(1);
-  });

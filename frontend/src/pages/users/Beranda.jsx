@@ -13,49 +13,57 @@ function Beranda() {
       {
         path: "/perkara",
         judul: "Pendaftaran Perkara",
-        deskripsi: "Layanan untuk mendaftarkan perkara perdata, pidana, atau lainnya ke pengadilan.",
+        deskripsi:
+          "Layanan untuk mendaftarkan perkara perdata, pidana, atau lainnya ke pengadilan.",
         gambar: "pendaftaran_perkara.jpg",
       },
       {
         path: "/permohonan-surat-keterangan",
         judul: "Permohonan Surat Keterangan",
-        deskripsi: "Permohonan surat keterangan seperti surat tidak pernah dipidana atau surat ahli waris.",
+        deskripsi:
+          "Permohonan surat keterangan seperti surat tidak pernah dipidana atau surat ahli waris.",
         gambar: "permohonan_surat_keterangan.jpg",
       },
       {
         path: "/pengajuan-upaya-hukum",
         judul: "Pengajuan Upaya Hukum",
-        deskripsi: "Layanan pengajuan banding, kasasi, atau peninjauan kembali terhadap putusan pengadilan.",
+        deskripsi:
+          "Layanan pengajuan banding, kasasi, atau peninjauan kembali terhadap putusan pengadilan.",
         gambar: "pengajuan_upaya_hukum.jpg",
       },
       {
         path: "/pengambilan-salinan-putusan",
         judul: "Pengambilan Salinan Putusan",
-        deskripsi: "Layanan untuk mengambil salinan resmi putusan pengadilan setelah perkara selesai.",
+        deskripsi:
+          "Layanan untuk mengambil salinan resmi putusan pengadilan setelah perkara selesai.",
         gambar: "pengambilan_salinan_putusan.jpg",
       },
       {
         path: "/layanan-pengaduan",
         judul: "Layanan Pengaduan",
-        deskripsi: "Layanan untuk masyarakat yang ingin mengajukan pengaduan terkait pelayanan atau dugaan pelanggaran.",
+        deskripsi:
+          "Layanan untuk masyarakat yang ingin mengajukan pengaduan terkait pelayanan atau dugaan pelanggaran.",
         gambar: "layanan_pengaduan.jpg",
       },
       {
         path: "/pendaftaran-medisiasi",
         judul: "Pendaftaran Mediasi",
-        deskripsi: "Layanan untuk mendaftarkan permohonan penyelesaian sengketa melalui proses mediasi.",
+        deskripsi:
+          "Layanan untuk mendaftarkan permohonan penyelesaian sengketa melalui proses mediasi.",
         gambar: "pendaftaran_medisiasi.jpg",
       },
       {
         path: "/permohonan-izin-penyitaan-penahanan",
         judul: "Permohonan Izin Penyitaan/Penahanan",
-        deskripsi: "Layanan bagi penyidik untuk mengajukan izin penyitaan atau penahanan dari pengadilan.",
+        deskripsi:
+          "Layanan bagi penyidik untuk mengajukan izin penyitaan atau penahanan dari pengadilan.",
         gambar: "permohonan_izin_penyitaan.jpg",
       },
       {
         path: "/permohonan-bantuan-panggilan",
         judul: "Permohonan Bantuan Panggilan/Pemberitahuan",
-        deskripsi: "Permohonan bantuan kepada pengadilan lain untuk melakukan pemanggilan atau pemberitahuan.",
+        deskripsi:
+          "Permohonan bantuan kepada pengadilan lain untuk melakukan pemanggilan atau pemberitahuan.",
         gambar: "permohonan_bantuan_panggilan.jpg",
       },
     ];
@@ -97,14 +105,19 @@ function Beranda() {
 
       {/* Content Section */}
       <div className="container mx-auto py-16 px-4">
-        <h2 className="text-3xl font-semibold text-center mb-10">Daftar Pelayanan PTSP</h2>
+        <h2 className="text-3xl font-semibold text-center mb-10">
+          Daftar Pelayanan PTSP
+        </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {loading ? (
             <div className="col-span-4 text-center">Loading...</div>
           ) : (
             currentPelayanan.map((item, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div
+                key={index}
+                className="bg-white rounded-lg shadow-lg overflow-hidden"
+              >
                 <Link to={item.path}>
                   <img
                     src={`https://via.placeholder.com/300?text=${item.gambar}`}
@@ -112,12 +125,19 @@ function Beranda() {
                     className="w-full h-48 object-cover"
                   />
                   <div className="p-6">
-                    <h3 className="text-xl font-semibold text-indigo-600">{item.judul}</h3>
+                    <h3 className="text-xl font-semibold text-indigo-600">
+                      {item.judul}
+                    </h3>
                     <p className="text-gray-600 mt-2">{item.deskripsi}</p>
                   </div>
                 </Link>
                 <div className="p-4">
-                  <Link to={item.path} className="text-indigo-600 hover:underline">Ajukan Layanan</Link>
+                  <Link
+                    to={item.path}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Ajukan Layanan
+                  </Link>
                 </div>
               </div>
             ))

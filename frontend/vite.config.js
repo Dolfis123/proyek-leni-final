@@ -2,29 +2,29 @@ import { defineConfig } from 'vite'
 // import plugin-plugin lain jika ada, contoh: import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  // Ini adalah konfigurasi utama Vite
-  // ... (konfigurasi plugin lainnya, seperti plugins: [react()] jika Anda menggunakan React)
+    // Ini adalah konfigurasi utama Vite
+    // ... (konfigurasi plugin lainnya, seperti plugins: [react()] jika Anda menggunakan React)
 
-  server: {
-    // Ini adalah port yang digunakan Vite secara internal saat development/preview
-    // Pastikan ini cocok dengan port yang digunakan Nginx untuk meneruskan ke frontend
-    port: 5174,
+    server: {
+        // Ini adalah port yang digunakan Vite secara internal saat development/preview
+        // Pastikan ini cocok dengan port yang digunakan Nginx untuk meneruskan ke frontend
+        port: 5174,
 
-    // Penting: Izinkan server Vite mendengarkan di semua alamat IP (termasuk dari Nginx)
-    // Jika tidak ada ini, Vite mungkin hanya mendengarkan di localhost,
-    // sehingga Nginx tidak bisa terhubung.
-    host: '0.0.0.0',
+        // Penting: Izinkan server Vite mendengarkan di semua alamat IP (termasuk dari Nginx)
+        // Jika tidak ada ini, Vite mungkin hanya mendengarkan di localhost,
+        // sehingga Nginx tidak bisa terhubung.
+        host: '0.0.0.0',
 
-    // --- PERBAIKAN DI SINI ---
-    // Daftar hostname yang diizinkan untuk mengakses server Vite
-    allowedHosts: [
-      'skydance.life',       // HANYA HOSTNAME, tanpa http/https
-      'www.skydance.life',   // HANYA HOSTNAME, tanpa http/https
-      // Jika Anda juga mengakses dari IP server langsung (misal saat debugging)
-      // Anda bisa menambahkannya di sini juga, contoh:
-      // '31.97.66.50'
-    ],
-  },
+        // --- PERBAIKAN DI SINI ---
+        // Daftar hostname yang diizinkan untuk mengakses server Vite
+        allowedHosts: [
+            'https://pengadilannegerimanokwari.pro/', // HANYA HOSTNAME, tanpa http/https
+            'https://pengadilannegerimanokwari.pro/', // HANYA HOSTNAME, tanpa http/https
+            // Jika Anda juga mengakses dari IP server langsung (misal saat debugging)
+            // Anda bisa menambahkannya di sini juga, contoh:
+            // '31.97.66.50'
+        ],
+    },
 
-  // ... (konfigurasi build atau lainnya)
+    // ... (konfigurasi build atau lainnya)
 })

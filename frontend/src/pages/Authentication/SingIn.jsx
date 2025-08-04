@@ -1,55 +1,53 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../../index.css"; // Import CSS file for styling
-import logo from '../../images/logo/logo.jpg'; // Import logo image
+import logo from "../../images/logo/logo.jpg"; // Import logo image
 function SignIn() {
-  const [namaPegawai, setNamaPegawai] = useState('');
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
+  const [namaPegawai, setNamaPegawai] = useState("");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError(''); // Reset error
-  
+    setError(""); // Reset error
+
     try {
-      const response = await fetch('http://localhost:7070/api/auth/login', {
-        method: 'POST',
+      const response = await fetch("http://localhost:7070/api/auth/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ Nama_Pegawai: namaPegawai, PIN: pin }),
       });
-  
+
       const data = await response.json();
-  
+
       if (response.ok) {
         // Simpan token, role, username, dan ID Pegawai ke localStorage
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('role', data.role);
-        localStorage.setItem('username', data.username);
-        localStorage.setItem('ID_Pegawai', data.ID_Pegawai); // Simpan ID Pegawai
-  
-        if (data.role === 'pegawai') {
-          navigate('/scan-qrcode'); // Arahkan pegawai ke halaman scan QR
-        } else if (data.role === 'admin') {
-          navigate('/data-pegawai');
-        } else if( data.role === 'super_admin') {
-          navigate('/super-admin'); // Arahkan super admin ke halaman super admin
-        }else{
-          alert('Role tidak dikenali. Hubungi admin.');
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("role", data.role);
+        localStorage.setItem("username", data.username);
+        localStorage.setItem("ID_Pegawai", data.ID_Pegawai); // Simpan ID Pegawai
+
+        if (data.role === "pegawai") {
+          navigate("/scan-qrcode"); // Arahkan pegawai ke halaman scan QR
+        } else if (data.role === "admin") {
+          navigate("/data-pegawai");
+        } else if (data.role === "super_admin") {
+          navigate("/super-admin"); // Arahkan super admin ke halaman super admin
+        } else {
+          alert("Role tidak dikenali. Hubungi admin.");
         }
       } else {
-        setError(data.message || 'Login gagal, silakan coba lagi.');
+        setError(data.message || "Login gagal, silakan coba lagi.");
       }
     } catch (err) {
-      setError('Server error, silakan coba lagi nanti.');
+      setError("Server error, silakan coba lagi nanti.");
     }
   };
-  
-  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 dark:from-gray-900 dark:to-gray-800 px-4">
@@ -60,9 +58,9 @@ function SignIn() {
             alt="Logo"
             className="mx-auto w-24 h-24 rounded-full border-4 border-white shadow-md"
           />
-  <h2 className="mt-4 text-xl font-bold text-gray-800 dark:text-white">
-  Antrian Penomoran PTSP
-</h2>
+          <h2 className="mt-4 text-xl font-bold text-gray-800 dark:text-white">
+            Antrian Penomoran PTSP
+          </h2>
 
           {/* <p className="text-sm text-gray-600 dark:text-gray-300">
             Masuk untuk melanjutkan
@@ -89,32 +87,34 @@ function SignIn() {
               PIN
             </label>
             <div className="relative">
-            <input
-  type={showPassword ? 'text' : 'password'}
-  value={pin}
-  onChange={(e) => {
-    const value = e.target.value;
-    // Hanya izinkan angka dan maksimal 6 digit
-    if (/^\d{0,6}$/.test(value)) {
-      setPin(value);
-    }
-  }}
-  placeholder="Masukkan PIN"
-  className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-  required
-/>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={pin}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Hanya izinkan angka dan maksimal 6 digit
+                  if (/^\d{0,6}$/.test(value)) {
+                    setPin(value);
+                  }
+                }}
+                placeholder="Masukkan PIN"
+                className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
 
               <div
                 className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500 dark:text-gray-300"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? "🙈" : "👁️"}
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="text-sm text-red-600 dark:text-red-400 text-center">{error}</div>
+            <div className="text-sm text-red-600 dark:text-red-400 text-center">
+              {error}
+            </div>
           )}
 
           <button
