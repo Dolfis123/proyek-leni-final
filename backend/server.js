@@ -43,7 +43,7 @@ queueController.setIoInstance(io);
 
 // Middlewares
 app.use(cors({
-    origin: [process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', 'http://localhost:5174'],
+    origin: [process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
