@@ -18,8 +18,8 @@ export default defineConfig({
         // --- PERBAIKAN DI SINI ---
         // Daftar hostname yang diizinkan untuk mengakses server Vite
         allowedHosts: [
-            'https://pengadilannegerimanokwari.pro/', // HANYA HOSTNAME, tanpa http/https
-            'https://pengadilannegerimanokwari.pro/', // HANYA HOSTNAME, tanpa http/https
+            'pengadilannegerimanokwari.pro/', // HANYA HOSTNAME, tanpa http/https
+            'www.pengadilannegerimanokwari.pro/', // HANYA HOSTNAME, tanpa http/https
             // Jika Anda juga mengakses dari IP server langsung (misal saat debugging)
             // Anda bisa menambahkannya di sini juga, contoh:
             // '31.97.66.50'
