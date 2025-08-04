@@ -44,6 +44,7 @@ const sendEmailNotification = async (toEmail, subject, htmlContent) => {
       `Error sending email to ${toEmail} with Brevo:`,
       error.message
     );
+    // BAGIAN INI SANGAT PENTING
     if (error.response && error.response.text) {
       console.error("Brevo API Response Status:", error.response.statusCode);
       console.error("Brevo API Response Body:", error.response.text);
