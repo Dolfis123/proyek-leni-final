@@ -35,7 +35,7 @@ const PORT = process.env.PORT || 5000;
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: [process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro', 'http://localhost:5174'],
+        origin: process.env.FRONTEND_URL || 'https://pengadilannegerimanokwari.pro',
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }
