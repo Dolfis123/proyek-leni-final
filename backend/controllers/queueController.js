@@ -16,16 +16,16 @@ const apiInstance = new Brevo.TransactionalEmailsApi();
 apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
 // Untuk real-time updates (akan diinisialisasi di server.js)
-let io; 
+let io;
 const setIoInstance = (socketIoInstance) => {
     io = socketIoInstance;
 };
 
 // Helper function untuk mengirim notifikasi Email
-const sendEmailNotification = async (toEmail, subject, htmlContent) => {
+const sendEmailNotification = async(toEmail, subject, htmlContent) => {
     const sendSmtpEmail = new Brevo.SendSmtpEmail();
-    
-    sendSmtpEmail.sender = { 
+
+    sendSmtpEmail.sender = {
         email: process.env.BREVO_SENDER_EMAIL,
     };
     sendSmtpEmail.to = [{ email: toEmail }];
@@ -47,14 +47,14 @@ const sendEmailNotification = async (toEmail, subject, htmlContent) => {
 };
 
 // Helper function untuk mengirim notifikasi WhatsApp (placeholder)
-const sendWhatsAppNotification = async (phoneNumber, message) => {
+const sendWhatsAppNotification = async(phoneNumber, message) => {
     console.log(`[WhatsApp Mock] Sending to ${phoneNumber}: ${message}`);
     return false;
 };
 
 
 // --- Middleware Pengecekan Jam Operasional & Hari Libur ---
-const checkOperationalStatus = async (req, res, next) => {
+const checkOperationalStatus = async(req, res, next) => {
     const currentMoment = new Date();
     const currentHour = currentMoment.getHours();
     const currentMinute = currentMoment.getMinutes();
@@ -70,13 +70,14 @@ const checkOperationalStatus = async (req, res, next) => {
     // Ambil jam operasional dari settings
     const settingKeys = ['monday_open_time', 'monday_close_time', 'monday_break_start_time', 'monday_break_end_time'];
     const settings = await SystemSetting.findAll({
-        where: { setting_key: { [Op.in]: settingKeys } }
+        where: { setting_key: {
+                [Op.in]: settingKeys } }
     });
     const getSettingValue = (key, defaultValue) => {
         const setting = settings.find(s => s.setting_key === key);
         return setting ? setting.setting_value : defaultValue;
     };
-    
+
     const openTimeStr = getSettingValue('monday_open_time', '08:00');
     const closeTimeStr = getSettingValue('monday_close_time', '16:00');
     const breakStartTimeStr = getSettingValue('monday_break_start_time', '12:00');
@@ -101,10 +102,10 @@ const checkOperationalStatus = async (req, res, next) => {
             currentMinutes += 24 * 60;
         }
     }
-    
+
     if (breakEndMinutes < breakStartMinutes) {
         breakEndMinutes += 24 * 60;
-        if (currentMinutes < breakStartMinutes && currentMinutes < openMinutes) { 
+        if (currentMinutes < breakStartMinutes && currentMinutes < openMinutes) {
             currentMinutes += 24 * 60;
         }
     }
@@ -128,17 +129,20 @@ const checkOperationalStatus = async (req, res, next) => {
 
 // --- Fungsi Pembantu untuk Real-time Updates (preparePublicQueueData & emitQueueUpdate) ---
 // Ini akan mengambil data dengan join menggunakan Sequelize
-const preparePublicQueueData = async () => {
+const preparePublicQueueData = async() => {
     const today = new Date();
     const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const activeQueues = await Queue.findAll({
         where: {
             queue_date: formattedToday,
-            status: { [Op.in]: ['waiting', 'calling', 'on_hold'] }
+            status: {
+                [Op.in]: ['waiting', 'calling', 'on_hold'] }
         },
         include: [{ model: Service, as: 'service' }], // Join dengan model Service
-        order: [['queue_number_daily', 'ASC']]
+        order: [
+            ['queue_number_daily', 'ASC']
+        ]
     });
 
     const services = await Service.findAll({ where: { is_active: true } }); // Ambil semua layanan aktif
@@ -150,7 +154,7 @@ const preparePublicQueueData = async () => {
     for (const service of services) {
         const queuesForService = activeQueues.filter(q => q.service_id === service.id);
         const callingQueue = queuesForService.find(q => q.status === 'calling');
-        
+
         let callingNumber = '---';
         let waitingCount = 0;
         let estimatedWaitTime = 'N/A';
@@ -158,7 +162,7 @@ const preparePublicQueueData = async () => {
         if (callingQueue) {
             callingNumber = callingQueue.full_queue_number;
             const callingQueueDailyNum = parseInt(callingQueue.full_queue_number.replace(service.service_prefix, ''));
-            waitingCount = queuesForService.filter(q => 
+            waitingCount = queuesForService.filter(q =>
                 q.status === 'waiting' && q.queue_number_daily > callingQueueDailyNum
             ).length;
             estimatedWaitTime = `${waitingCount * service.estimated_duration_minutes} min`;
@@ -166,9 +170,9 @@ const preparePublicQueueData = async () => {
             waitingCount = queuesForService.filter(q => q.status === 'waiting').length;
             estimatedWaitTime = `${waitingCount * service.estimated_duration_minutes} min`;
             if (waitingCount > 0) {
-                 // Jika tidak ada yang calling, ambil nomor antrian pertama yang waiting
-                 callingNumber = queuesForService.filter(q => q.status === 'waiting')
-                                    .sort((a, b) => a.queue_number_daily - b.queue_number_daily)[0].full_queue_number;
+                // Jika tidak ada yang calling, ambil nomor antrian pertama yang waiting
+                callingNumber = queuesForService.filter(q => q.status === 'waiting')
+                    .sort((a, b) => a.queue_number_daily - b.queue_number_daily)[0].full_queue_number;
             } else {
                 callingNumber = 'Kosong';
             }
@@ -189,16 +193,16 @@ const preparePublicQueueData = async () => {
 };
 
 
-const emitQueueUpdate = async (serviceId = null) => {
+const emitQueueUpdate = async(serviceId = null) => {
     if (!io) {
         console.warn('Socket.IO instance not set for queueController.');
         return;
     }
-    
-    const dataToEmit = await preparePublicQueueData(); 
-    console.log('[Socket.IO] Data prepared for emitting:', JSON.stringify(dataToEmit, null, 2)); 
-    
-    io.emit('queue_update', dataToEmit); 
+
+    const dataToEmit = await preparePublicQueueData();
+    console.log('[Socket.IO] Data prepared for emitting:', JSON.stringify(dataToEmit, null, 2));
+
+    io.emit('queue_update', dataToEmit);
 
     console.log('[Socket.IO] Emitted queue_update to all clients.');
 };
@@ -206,7 +210,7 @@ const emitQueueUpdate = async (serviceId = null) => {
 // --- API Publik (Pengguna) ---
 
 // 1. Meminta Kode OTP
-const requestOtp = async (req, res) => {
+const requestOtp = async(req, res) => {
     const { service_id, customer_name, customer_email, customer_phone_number } = req.body;
 
     if (!service_id || !customer_name || !customer_email || !customer_phone_number) {
@@ -220,9 +224,9 @@ const requestOtp = async (req, res) => {
         }
 
         // Invalidasi OTP sebelumnya untuk email ini
-        await OtpCode.update(
-            { is_used: true, is_verified: false, expires_at: new Date() }, // Tandai sebagai used dan expired
-            { where: { recipient_email: customer_email, is_used: false, expires_at: { [Op.gt]: new Date() } } }
+        await OtpCode.update({ is_used: true, is_verified: false, expires_at: new Date() }, // Tandai sebagai used dan expired
+            { where: { recipient_email: customer_email, is_used: false, expires_at: {
+                        [Op.gt]: new Date() } } }
         );
 
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
@@ -255,7 +259,7 @@ const requestOtp = async (req, res) => {
 // ... (imports lainnya dan fungsi-fungsi di atasnya) ...
 
 // 2. Memverifikasi Kode OTP dan Membuat Antrian
-const verifyOtpAndCreateQueue = async (req, res) => {
+const verifyOtpAndCreateQueue = async(req, res) => {
     const { service_id, customer_name, customer_email, customer_phone_number, otp_code } = req.body;
 
     if (!service_id || !customer_name || !customer_email || !customer_phone_number || !otp_code) {
@@ -271,10 +275,11 @@ const verifyOtpAndCreateQueue = async (req, res) => {
             where: {
                 customer_email: customer_email,
                 queue_date: formattedToday,
-                status: { [Op.notIn]: ['missed', 'expired', 'completed'] }
+                status: {
+                    [Op.notIn]: ['missed', 'expired', 'completed'] }
             }
         });
-        
+
         if (existingQueue) {
             return res.status(409).json({ message: 'Anda sudah memiliki antrian aktif hari ini.' });
         }
@@ -283,7 +288,8 @@ const verifyOtpAndCreateQueue = async (req, res) => {
             where: {
                 recipient_email: customer_email,
                 otp_code: otp_code,
-                expires_at: { [Op.gt]: new Date() },
+                expires_at: {
+                    [Op.gt]: new Date() },
                 is_used: false
             }
         });
@@ -302,13 +308,15 @@ const verifyOtpAndCreateQueue = async (req, res) => {
                 service_id: service_id,
                 queue_date: formattedToday
             },
-            order: [['queue_number_daily', 'DESC']],
+            order: [
+                ['queue_number_daily', 'DESC']
+            ],
             limit: 1
         });
-        
+
         let nextQueueNumberDaily = 1;
         // Jika ada antrian sebelumnya, ambil nomor antrian harian terakhir + 1
-        if (existingQueuesForServiceToday.length > 0) { 
+        if (existingQueuesForServiceToday.length > 0) {
             nextQueueNumberDaily = existingQueuesForServiceToday[0].queue_number_daily + 1;
         }
         // --- AKHIR PERBAIKAN UTAMA ---
@@ -346,14 +354,14 @@ const verifyOtpAndCreateQueue = async (req, res) => {
         );
 
         emitQueueUpdate(service.id); // Emit update ke semua client
-        res.status(201).json({ 
-            message: 'Antrian berhasil dibuat!', 
-            queue: { 
-                id: newQueue.id, 
-                full_queue_number: newQueue.full_queue_number, 
+        res.status(201).json({
+            message: 'Antrian berhasil dibuat!',
+            queue: {
+                id: newQueue.id,
+                full_queue_number: newQueue.full_queue_number,
                 service_name: service.service_name,
                 customer_email: newQueue.customer_email
-            } 
+            }
         });
 
     } catch (error) {
@@ -365,7 +373,7 @@ const verifyOtpAndCreateQueue = async (req, res) => {
 // ... (sisa kode controller) ...
 
 // 3. Mendapatkan Status Antrian Publik (Real-time Display)
-const getPublicQueueStatus = async (req, res) => {
+const getPublicQueueStatus = async(req, res) => {
     try {
         const publicStatusData = await preparePublicQueueData();
         res.status(200).json(publicStatusData);
@@ -376,7 +384,7 @@ const getPublicQueueStatus = async (req, res) => {
 };
 
 // 4. Mendapatkan status antrian spesifik untuk pengguna (berdasarkan email)
-const getMyQueueStatus = async (req, res) => {
+const getMyQueueStatus = async(req, res) => {
     const { email } = req.query;
 
     if (!email) {
@@ -391,7 +399,8 @@ const getMyQueueStatus = async (req, res) => {
             where: {
                 customer_email: email,
                 queue_date: formattedToday,
-                status: { [Op.notIn]: ['expired', 'completed'] } // Hanya cek yang belum expired/completed
+                status: {
+                    [Op.notIn]: ['expired', 'completed'] } // Hanya cek yang belum expired/completed
             },
             include: [{ model: Service, as: 'service' }] // Join dengan Service untuk service_name
         });
@@ -406,9 +415,11 @@ const getMyQueueStatus = async (req, res) => {
                 queue_date: formattedToday,
                 status: 'calling'
             },
-            order: [['queue_number_daily', 'ASC']]
+            order: [
+                ['queue_number_daily', 'ASC']
+            ]
         });
-        
+
         let position = 0;
         let estimatedTime = 'N/A';
 
@@ -428,13 +439,14 @@ const getMyQueueStatus = async (req, res) => {
 
             if (currentCalling) {
                 const callingNum = currentCalling.queue_number_daily;
-                
+
                 if (myNum > callingNum) {
                     const queuesInFrontCount = await Queue.count({
                         where: {
                             service_id: myQueue.service_id,
                             queue_date: formattedToday,
-                            status: { [Op.in]: ['waiting', 'calling', 'on_hold'] },
+                            status: {
+                                [Op.in]: ['waiting', 'calling', 'on_hold'] },
                             queue_number_daily: {
                                 [Op.gt]: callingNum, // Setelah yang sedang dipanggil
                                 [Op.lt]: myNum // Sebelum antrian saya
@@ -448,8 +460,10 @@ const getMyQueueStatus = async (req, res) => {
                         where: {
                             service_id: myQueue.service_id,
                             queue_date: formattedToday,
-                            status: { [Op.in]: ['waiting', 'calling', 'on_hold'] },
-                            queue_number_daily: { [Op.lte]: myNum } // Semua antrian <= nomor saya
+                            status: {
+                                [Op.in]: ['waiting', 'calling', 'on_hold'] },
+                            queue_number_daily: {
+                                [Op.lte]: myNum } // Semua antrian <= nomor saya
                         }
                     })) - 1; // Kurangi 1 karena saya sendiri dihitung
 
@@ -467,8 +481,10 @@ const getMyQueueStatus = async (req, res) => {
                     where: {
                         service_id: myQueue.service_id,
                         queue_date: formattedToday,
-                        status: { [Op.in]: ['waiting', 'on_hold'] }, // Hanya menunggu dan ditunda
-                        queue_number_daily: { [Op.lt]: myNum }
+                        status: {
+                            [Op.in]: ['waiting', 'on_hold'] }, // Hanya menunggu dan ditunda
+                        queue_number_daily: {
+                            [Op.lt]: myNum }
                     }
                 });
                 position = queuesInFrontCount;
@@ -499,7 +515,7 @@ const getMyQueueStatus = async (req, res) => {
 
 
 // 5. Mengambil Ulang Antrian (untuk pengguna yang terlewat)
-const requeueMissed = async (req, res) => {
+const requeueMissed = async(req, res) => {
     const { customer_email, service_id } = req.body;
 
     if (!customer_email || !service_id) {
@@ -519,7 +535,7 @@ const requeueMissed = async (req, res) => {
                 service_id: service_id // Pastikan layanan juga cocok
             }
         });
-        
+
         if (!missedQueue) {
             return res.status(404).json({ message: 'No missed queue found for this email and service today.' });
         }
@@ -573,7 +589,7 @@ const requeueMissed = async (req, res) => {
 // --- API Admin (Staf Pengadilan) ---
 
 // 1. Mendapatkan daftar antrian untuk loket admin
-const getQueuesForAdmin = async (req, res) => {
+const getQueuesForAdmin = async(req, res) => {
     const { serviceId } = req.params; // serviceId dari URL params (string)
     const formattedToday = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
 
@@ -588,12 +604,15 @@ const getQueuesForAdmin = async (req, res) => {
             where: {
                 service_id: selectedServiceIdInt, // Gunakan integer di sini
                 queue_date: formattedToday,
-                status: { [Op.in]: ['waiting', 'calling', 'on_hold'] }
+                status: {
+                    [Op.in]: ['waiting', 'calling', 'on_hold'] }
             },
-            order: [['queue_number_daily', 'ASC']],
+            order: [
+                ['queue_number_daily', 'ASC']
+            ],
             include: [{ model: Service, as: 'service' }] // Sertakan detail layanan
         });
-        
+
         const currentCalling = queuesForService.find(q => q.status === 'calling');
         const waitingQueues = queuesForService.filter(q => q.status === 'waiting' || q.status === 'on_hold');
 
@@ -612,7 +631,7 @@ const getQueuesForAdmin = async (req, res) => {
 };
 
 // 2. Memanggil antrian berikutnya
-const callNextQueue = async (req, res) => {
+const callNextQueue = async(req, res) => {
     const { serviceId } = req.params;
     const adminId = req.user.id;
 
@@ -630,7 +649,7 @@ const callNextQueue = async (req, res) => {
                 status: 'calling'
             }
         });
-        
+
         if (existingCalling) {
             await existingCalling.update({ status: 'completed', completion_time: new Date(), completed_by_user_id: adminId });
             console.log(`[Backend QM] Previous calling queue ${existingCalling.full_queue_number} marked completed.`);
@@ -643,7 +662,9 @@ const callNextQueue = async (req, res) => {
                 queue_date: formattedToday,
                 status: 'waiting'
             },
-            order: [['queue_number_daily', 'ASC']]
+            order: [
+                ['queue_number_daily', 'ASC']
+            ]
         });
 
         if (!nextQueue) {
@@ -654,17 +675,20 @@ const callNextQueue = async (req, res) => {
         await nextQueue.update({ status: 'calling', called_time: new Date(), called_by_user_id: adminId });
         console.log(`[Backend QM] Calling next queue: ${nextQueue.full_queue_number}`);
 
-        const notificationThreshold = parseInt(await SystemSetting.findOne({ where: { setting_key: 'notification_threshold' } })?.setting_value || '3');
+        const notificationThreshold = parseInt(await SystemSetting.findOne({ where: { setting_key: 'notification_threshold' } }) ? .setting_value || '3');
         const currentCallingQueueNumber = nextQueue.queue_number_daily; // Langsung ambil nomor harian
-        
+
         const upcomingQueues = await Queue.findAll({
             where: {
                 service_id: selectedServiceIdInt,
                 queue_date: formattedToday,
                 status: 'waiting',
-                queue_number_daily: { [Op.gt]: currentCallingQueueNumber }, // Setelah yang sedang dipanggil
+                queue_number_daily: {
+                    [Op.gt]: currentCallingQueueNumber }, // Setelah yang sedang dipanggil
             },
-            order: [['queue_number_daily', 'ASC']],
+            order: [
+                ['queue_number_daily', 'ASC']
+            ],
             limit: notificationThreshold,
             include: [{ model: Service, as: 'service' }] // Join untuk service_name
         });
@@ -703,7 +727,7 @@ const callNextQueue = async (req, res) => {
 };
 
 // 3. Menandai antrian (Selesai, Terlewat, Ditunda)
-const markQueueStatus = async (req, res) => {
+const markQueueStatus = async(req, res) => {
     const { queueId } = req.params;
     const { status } = req.body; // 'completed', 'missed', 'on_hold'
     const adminId = req.user.id; // User dari JWT
@@ -756,7 +780,7 @@ const markQueueStatus = async (req, res) => {
 };
 
 // 4. Memanggil Ulang Antrian Terakhir (jika admin tidak sengaja melewatkan/salah panggil)
-const recallLastCalledQueue = async (req, res) => {
+const recallLastCalledQueue = async(req, res) => {
     const { serviceId } = req.params;
     const adminId = req.user.id;
 
@@ -773,7 +797,9 @@ const recallLastCalledQueue = async (req, res) => {
                 queue_date: formattedToday,
                 status: 'calling'
             },
-            order: [['called_time', 'DESC']], // Ambil yang paling baru dipanggil
+            order: [
+                ['called_time', 'DESC']
+            ], // Ambil yang paling baru dipanggil
             include: [{ model: Service, as: 'service' }] // Join untuk nama layanan
         });
 
@@ -805,7 +831,7 @@ const recallLastCalledQueue = async (req, res) => {
 
 
 // --- API Laporan (Super Admin) ---
-const getQueueReport = async (req, res) => {
+const getQueueReport = async(req, res) => {
     const { startDate, endDate, serviceId } = req.query; // Ambil dari query params
 
     if (!startDate || !endDate) {
@@ -814,7 +840,8 @@ const getQueueReport = async (req, res) => {
 
     try {
         const whereClause = {
-            registration_time: { [Op.between]: [`${startDate} 00:00:00`, `${endDate} 23:59:59`] }
+            registration_time: {
+                [Op.between]: [`${startDate} 00:00:00`, `${endDate} 23:59:59`] }
         };
         if (serviceId) {
             whereClause.service_id = parseInt(serviceId);
@@ -838,7 +865,10 @@ const getQueueReport = async (req, res) => {
                 attributes: [] // Don't select service attributes directly, only for grouping/joining
             }],
             group: [db.sequelize.fn('DATE', db.sequelize.col('Queue.registration_time')), 'service.service_name'], // Group by date and service name
-            order: [[db.sequelize.fn('DATE', db.sequelize.col('Queue.registration_time')), 'ASC'], ['service_name', 'ASC']]
+            order: [
+                [db.sequelize.fn('DATE', db.sequelize.col('Queue.registration_time')), 'ASC'],
+                ['service_name', 'ASC']
+            ]
         });
         res.status(200).json(report);
     } catch (error) {
