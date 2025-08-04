@@ -10,7 +10,7 @@ require('dotenv').config();
 // Import database dari models/index.js (Sequelize)
 const db = require('./models');
 const { Op } = require('sequelize'); // Diperlukan untuk cron job update
-import { io } from "socket.io-client";
+
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
