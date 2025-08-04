@@ -23,11 +23,8 @@ const queueController = require('./controllers/queueController');
 
 const app = express();
 
-// --- PENTING: TAMBAHKAN BARIS INI ---
 // Mengaktifkan trust proxy agar Express mengenali bahwa ia berada di belakang Nginx.
-// Ini penting untuk penanganan header Host, X-Forwarded-For, X-Forwarded-Proto
 app.enable('trust proxy');
-// --- AKHIR TAMBAHAN ---
 
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
@@ -72,6 +69,7 @@ app.use((err, req, res, next) => {
 });
 
 // --- Socket.IO Connection Handling ---
+// Kode ini hanya menangani namespace default ('/')
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
     socket.on('disconnect', () => {
