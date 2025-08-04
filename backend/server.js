@@ -133,7 +133,7 @@ const setupDailyResetCron = async() => {
 };
 
 // Sinkronisasi database Sequelize dan memulai server
-db.sequelize.sync({ alter: true })
+db.sequelize.sync() // <-- AMAN
     .then(() => {
         console.log('Database synced successfully!');
         setupDailyResetCron();
