@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
 // Pastikan path gambar sudah benar
-import logo from "../../images/logo/logo.png";
+import logo from "../../images/logo/logo.jpeg";
 import bgImage from "../../images/logo/pnMkw.jpeg";
 
 // --- Komponen Ikon SVG untuk tampilan yang lebih bersih dan profesional ---
