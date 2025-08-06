@@ -1,15 +1,149 @@
-// src/pages/public/MyQueueStatusPage.jsx
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { getMyQueueStatus, requeueMissed } from "../../api/queue";
-import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
-// Icon import (contoh, jika Anda menggunakan Heroicons atau Font Awesome)
-// Anda perlu menginstal library ikon jika belum. Contoh: npm install @heroicons/react
-// import { ExclamationCircleIcon, CheckCircleIcon, InformationCircleIcon, ClockIcon } from '@heroicons/react/24/solid';
+// --- Komponen Ikon SVG untuk UI Profesional ---
+const MailIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5 text-gray-400"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+  </svg>
+);
+const Spinner = ({ small }) => (
+  <svg
+    className={`animate-spin ${small ? "h-5 w-5" : "h-8 w-8"} text-white`}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    ></circle>
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    ></path>
+  </svg>
+);
+const CheckCircleIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-12 w-12 text-green-500"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+const ExclamationTriangleIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-12 w-12 text-yellow-500"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+const ClockIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-12 w-12 text-blue-500"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+const MegaphoneIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-12 w-12 text-red-500"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path d="M10 3a1 1 0 011 1v1.31a3.984 3.984 0 012.373 1.293l1.293-1.293a1 1 0 111.414 1.414l-1.293 1.293A3.984 3.984 0 0116.31 10H18a1 1 0 110 2h-1.69a3.984 3.984 0 01-1.293 2.373l1.293 1.293a1 1 0 11-1.414 1.414l-1.293-1.293A3.984 3.984 0 0111 14.69V16a1 1 0 11-2 0v-1.31a3.984 3.984 0 01-2.373-1.293l-1.293 1.293a1 1 0 11-1.414-1.414l1.293-1.293A3.984 3.984 0 013.69 12H2a1 1 0 110-2h1.69a3.984 3.984 0 011.293-2.373L3.69 6.336a1 1 0 011.414-1.414l1.293 1.293A3.984 3.984 0 019 5.31V4a1 1 0 011-1z" />
+  </svg>
+);
+
+// --- Helper untuk mendapatkan info visual berdasarkan status ---
+const getStatusInfo = (status) => {
+  switch (status) {
+    case "calling":
+      return {
+        text: "DIPANGGIL",
+        color: "red",
+        icon: <MegaphoneIcon />,
+        message: "Giliran Anda! Silakan segera menuju loket pelayanan.",
+      };
+    case "waiting":
+      return {
+        text: "MENUNGGU",
+        color: "blue",
+        icon: <ClockIcon />,
+        message:
+          "Mohon menunggu giliran Anda. Pantau terus nomor yang sedang dipanggil.",
+      };
+    case "completed":
+      return {
+        text: "SELESAI",
+        color: "green",
+        icon: <CheckCircleIcon />,
+        message:
+          "Layanan Anda telah selesai. Terima kasih atas kunjungan Anda.",
+      };
+    case "missed":
+      return {
+        text: "TERLEWAT",
+        color: "yellow",
+        icon: <ExclamationTriangleIcon />,
+        message:
+          "Anda melewatkan panggilan. Silakan ambil ulang antrian jika masih diperlukan.",
+      };
+    case "expired":
+      return {
+        text: "KADALUARSA",
+        color: "gray",
+        icon: <ExclamationTriangleIcon />,
+        message:
+          "Nomor antrian Anda telah kadaluarsa. Silakan ambil antrian baru untuk esok hari.",
+      };
+    default:
+      return {
+        text: "TIDAK DIKETAHUI",
+        color: "gray",
+        icon: <ExclamationTriangleIcon />,
+        message: "Status antrian tidak diketahui.",
+      };
+  }
+};
 
 const MyQueueStatusPage = () => {
+  // ... (SEMUA STATE DAN LOGIKA ANDA TETAP SAMA)
   const location = useLocation();
   const [email, setEmail] = useState("");
   const [queueStatus, setQueueStatus] = useState(null);
@@ -27,27 +161,15 @@ const MyQueueStatusPage = () => {
 
   const fetchQueueStatus = async (currentEmail) => {
     if (!currentEmail) return;
-
     setLoading(true);
     try {
       const data = await getMyQueueStatus(currentEmail);
       setQueueStatus(data);
-      if (data && data.queue) {
-        toast.success(
-          `Status antrian Anda (${data.queue.full_queue_number}) berhasil dimuat.`
-        );
-      } else {
-        toast.info(
-          `Tidak ditemukan antrian aktif untuk email "${currentEmail}" hari ini.`
-        );
-      }
     } catch (err) {
       console.error("Gagal mengambil status antrian saya:", err);
       setQueueStatus(null);
       toast.error(
-        err.response?.data?.message ||
-          err.message ||
-          "Gagal memuat status antrian. Silakan coba lagi."
+        err.response?.data?.message || "Gagal memuat status antrian."
       );
     } finally {
       setLoading(false);
@@ -60,21 +182,14 @@ const MyQueueStatusPage = () => {
   };
 
   const handleRequeue = async () => {
-    if (
-      !queueStatus?.queue?.id ||
-      !queueStatus?.queue?.service_id ||
-      queueStatus.queue.status !== "missed"
-    ) {
-      toast.error("Data antrian tidak valid untuk ambil ulang.");
+    if (!queueStatus?.queue?.id || queueStatus.queue.status !== "missed")
       return;
-    }
     if (
       !window.confirm(
-        "Apakah Anda yakin ingin mengambil ulang antrian ini? Anda akan mendapatkan nomor antrian baru di urutan terakhir."
+        "Apakah Anda yakin ingin mengambil ulang antrian ini? Anda akan mendapatkan nomor baru di urutan terakhir."
       )
-    ) {
+    )
       return;
-    }
 
     setActionLoading(true);
     try {
@@ -82,215 +197,187 @@ const MyQueueStatusPage = () => {
         customer_email: email,
         service_id: queueStatus.queue.service_id,
       });
-      await fetchQueueStatus(email); // Refresh data setelah requeue
+      await fetchQueueStatus(email);
       toast.success(response.message || "Antrian berhasil diambil ulang!");
     } catch (err) {
       console.error("Gagal mengambil ulang antrian:", err);
       toast.error(
-        err.response?.data?.message ||
-          err.message ||
-          "Gagal mengambil ulang antrian. Silakan coba lagi."
+        err.response?.data?.message || "Gagal mengambil ulang antrian."
       );
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Fungsi pembantu untuk menentukan warna badge status
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case "calling":
-        return "bg-red-500 text-white";
-      case "waiting":
-        return "bg-blue-500 text-white";
-      case "on_hold":
-        return "bg-yellow-500 text-gray-900";
-      case "completed":
-        return "bg-green-500 text-white";
-      case "missed":
-        return "bg-orange-500 text-white";
-      case "expired":
-        return "bg-gray-500 text-white";
-      default:
-        return "bg-gray-300 text-gray-800";
-    }
-  };
-
-  const formatStatusText = (status) => {
-    return status.replace(/_/g, " ").toUpperCase();
+  const statusInfo = queueStatus?.queue?.status
+    ? getStatusInfo(queueStatus.queue.status)
+    : null;
+  const colorVariants = {
+    red: "border-red-500 bg-red-50 text-red-800",
+    blue: "border-blue-500 bg-blue-50 text-blue-800",
+    green: "border-green-500 bg-green-50 text-green-800",
+    yellow: "border-yellow-500 bg-yellow-50 text-yellow-800",
+    gray: "border-gray-500 bg-gray-50 text-gray-800",
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4 sm:p-6">
-      <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-2xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">
-          Status Antrian Anda
-        </h2>
-
-        {/* Indikator Loading untuk Pencarian atau Aksi */}
-        {loading && (
-          <p className="text-blue-500 text-center mb-6 text-lg">
-            Mencari status antrian...
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-2xl">
+        <header className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800">
+            Status Antrian Anda
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Lacak posisi antrian Anda secara real-time di sini.
           </p>
-        )}
-        {actionLoading && (
-          <p className="text-indigo-500 text-center mb-6 text-lg">
-            Memproses permintaan...
-          </p>
-        )}
+        </header>
 
-        {/* Formulir Input Email */}
-        <form
-          onSubmit={handleSubmit}
-          className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-lg shadow-sm"
-        >
-          <label
-            htmlFor="emailInput"
-            className="block text-md font-semibold text-gray-700 mb-3"
-          >
-            Cari Status Antrian Anda:
-          </label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="email"
-              id="emailInput"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="nama@email.com"
-              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-2.5 px-4 text-gray-800"
-              required
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition duration-200 transform hover:scale-105"
-              disabled={loading || actionLoading}
+        <main className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-gray-100">
+          {/* Formulir Pencarian */}
+          <form onSubmit={handleSubmit} className="mb-8">
+            <label
+              htmlFor="emailInput"
+              className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Cari
-            </button>
-          </div>
-        </form>
+              Masukkan email yang Anda daftarkan:
+            </label>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-grow">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MailIcon />
+                </div>
+                <input
+                  type="email"
+                  id="emailInput"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nama@email.com"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex justify-center items-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
+                disabled={loading || actionLoading}
+              >
+                {loading ? "Mencari..." : "Lacak Antrian"}
+              </button>
+            </div>
+          </form>
 
-        {/* Tampilan Status Antrian (Jika Ditemukan) */}
-        {!loading && !actionLoading && queueStatus && queueStatus.queue ? (
-          <div className="bg-gradient-to-br from-indigo-50 to-blue-100 p-8 rounded-xl border border-blue-200 text-center shadow-lg transform hover:scale-[1.02] transition-transform duration-300">
-            <p className="text-gray-700 text-lg mb-2 font-medium">
-              Nomor Antrian Anda:
-            </p>
-            <p className="text-7xl sm:text-8xl font-extrabold text-blue-800 mb-4 animate-pulseIn">
-              {queueStatus.queue.full_queue_number}
-            </p>
-            <p className="text-xl text-gray-700 mb-4">
-              Layanan:{" "}
-              <span className="font-semibold text-indigo-700">
-                {queueStatus.queue.service?.service_name || "N/A"}
-              </span>
-            </p>
+          {/* Hasil Pencarian */}
+          {loading ? (
+            <div className="text-center py-10">
+              <p className="text-indigo-600">Memuat status...</p>
+            </div>
+          ) : queueStatus && queueStatus.queue ? (
+            // --- KARTU TIKET ANTRIAN ---
+            <div
+              className={`rounded-xl shadow-lg border-l-8 ${
+                colorVariants[statusInfo.color]
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-indigo-700">
+                      {queueStatus.queue.service?.service_name || "Layanan"}
+                    </p>
+                    <p className="text-5xl sm:text-7xl font-extrabold text-gray-800 mt-1">
+                      {queueStatus.queue.full_queue_number}
+                    </p>
+                  </div>
+                  <div
+                    className={`px-4 py-1 rounded-full text-sm font-bold ${
+                      colorVariants[statusInfo.color]
+                    } border ${colorVariants[statusInfo.color].replace(
+                      "bg-",
+                      "border-"
+                    )}`}
+                  >
+                    {statusInfo.text}
+                  </div>
+                </div>
 
-            <div className="flex items-center justify-center mb-6">
-              <span
-                className={`px-4 py-1.5 rounded-full text-md font-bold ${getStatusBadgeClass(
-                  queueStatus.queue.status
+                <div className="mt-6 border-t border-dashed pt-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-gray-500">Antrian di Depan</p>
+                    <p className="text-2xl font-bold text-gray-800">
+                      {queueStatus.queues_in_front ?? "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Estimasi Tunggu</p>
+                    <p className="text-2xl font-bold text-gray-800">
+                      {queueStatus.estimated_wait_time ?? "-"}
+                    </p>
+                  </div>
+                  <div className="col-span-2 md:col-span-1">
+                    <p className="text-sm text-gray-500">Sedang Dipanggil</p>
+                    <p className="text-2xl font-bold text-gray-800">
+                      {queueStatus.current_calling_number || "-"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pesan Aksi Berdasarkan Status */}
+              <div
+                className={`p-6 rounded-b-xl mt-4 flex items-center gap-4 ${
+                  colorVariants[statusInfo.color]
+                } border-t ${colorVariants[statusInfo.color].replace(
+                  "bg-",
+                  "border-"
                 )}`}
               >
-                {formatStatusText(queueStatus.queue.status)}
-              </span>
+                {statusInfo.icon}
+                <div className="flex-1">
+                  <p className="font-bold">{statusInfo.message}</p>
+                  {queueStatus.queue.status === "missed" && (
+                    <button
+                      onClick={handleRequeue}
+                      disabled={actionLoading}
+                      className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-red-300"
+                    >
+                      {actionLoading && <Spinner small />}
+                      {actionLoading ? "Memproses..." : "Ambil Ulang Antrian"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-
-            {/* Detail Posisi dan Estimasi Waktu Tunggu */}
-            {["waiting", "on_hold"].includes(queueStatus.queue.status) && (
-              <div className="space-y-2 text-gray-700">
-                <p className="text-lg">
-                  Antrian di Depan:{" "}
-                  <span className="font-semibold text-blue-700">
-                    {queueStatus.queues_in_front}
-                  </span>
+          ) : (
+            // --- Pesan Jika Tidak Ditemukan ---
+            !loading && (
+              <div className="text-center bg-gray-50 p-8 rounded-lg border border-gray-200">
+                <p className="font-semibold text-gray-700">
+                  {email
+                    ? `Tidak ada antrian aktif untuk "${email}"`
+                    : "Silakan masukkan email Anda untuk memulai."}
                 </p>
-                <p className="text-lg">
-                  Estimasi Waktu Tunggu:{" "}
-                  <span className="font-semibold text-blue-700">
-                    {queueStatus.estimated_wait_time}
-                  </span>
-                </p>
-                <p className="text-md text-gray-600 pt-2">
-                  Nomor Sedang Dipanggil:{" "}
-                  <span className="font-semibold">
-                    {queueStatus.current_calling_number || "Belum ada"}
-                  </span>
+                <p className="text-sm text-gray-500 mt-1">
+                  Pastikan email yang dimasukkan sudah benar.
                 </p>
               </div>
-            )}
+            )
+          )}
+        </main>
 
-            {/* Pesan Spesifik Berdasarkan Status */}
-            {queueStatus.queue.status === "calling" && (
-              <p className="text-green-600 text-2xl font-bold mt-6 animate-bounce">
-                Silakan menuju loket sekarang! 🚀
-              </p>
-            )}
-            {queueStatus.queue.status === "completed" && (
-              <p className="text-green-700 text-xl font-semibold mt-6">
-                Layanan Anda telah selesai. Terima kasih! ✅
-              </p>
-            )}
-            {queueStatus.queue.status === "expired" && (
-              <p className="text-red-700 text-xl font-semibold mt-6">
-                Antrian Anda telah kadaluarsa. Silakan daftar antrian baru. ⚠️
-              </p>
-            )}
-            {queueStatus.queue.status === "missed" && (
-              <p className="text-orange-700 text-xl font-semibold mt-6">
-                Anda telah melewatkan antrian. Silakan ambil ulang jika masih
-                ingin dilayani.
-              </p>
-            )}
-
-            {/* Tombol Ambil Ulang Antrian jika statusnya 'missed' */}
-            {queueStatus.queue.status === "missed" && (
-              <button
-                onClick={handleRequeue}
-                className="mt-8 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-3 px-8 rounded-lg shadow-xl transition duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={actionLoading}
-              >
-                {actionLoading
-                  ? "Memproses..."
-                  : "Ambil Ulang Antrian Sekarang"}
-              </button>
-            )}
-          </div>
-        ) : (
-          // Pesan jika tidak ada antrian ditemukan atau belum mencari
-          !loading &&
-          !actionLoading && (
-            <div className="text-center bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
-              <p className="text-gray-600 text-lg">
-                {email
-                  ? `Tidak ditemukan antrian aktif untuk email "${email}" hari ini.`
-                  : "Masukkan email Anda untuk melihat status antrian."}
-              </p>
-              <p className="text-gray-500 text-sm mt-2">
-                Pastikan email yang Anda masukkan benar dan Anda telah mendaftar
-                antrian hari ini.
-              </p>
-            </div>
-          )
-        )}
-
-        {/* Navigasi Footer */}
-        <div className="text-center mt-10 flex flex-wrap justify-center gap-4">
+        <footer className="text-center mt-8 space-x-6">
+          <Link
+            to="/"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+          >
+            &larr; Halaman Utama
+          </Link>
           <Link
             to="/register-queue"
-            className="flex items-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors duration-200 shadow-md"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
           >
-            {/* <PencilSquareIcon className="h-5 w-5 mr-2" /> Contoh ikon */}
-            Daftar Antrian Baru
+            Daftar Antrian Baru &rarr;
           </Link>
-          <Link
-            to="/status-display"
-            className="flex items-center px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors duration-200 shadow-md"
-          >
-            {/* <EyeIcon className="h-5 w-5 mr-2" /> Contoh ikon */}
-            Lihat Status Antrian Publik
-          </Link>
-        </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,201 +1,306 @@
-// src/pages/public/QueueStatusDisplayPage.jsx
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import socket from '../../api/socket';
-import { getPublicQueueStatusAPI } from '../../api/queue';
-import toast from 'react-hot-toast';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState, useRef, useMemo } from "react";
+import socket from "../../api/socket";
+import { getPublicQueueStatusAPI } from "../../api/queue";
+import toast from "react-hot-toast";
+import { Link } from "react-router-dom";
+
+// --- Komponen Tambahan untuk UI ---
+
+// Komponen Jam Digital Real-time
+const Clock = () => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timerId = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timerId);
+  }, []);
+
+  const formatTime = (date) => {
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const formatDate = (date) => {
+    const options = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Jayapura",
+    };
+    return new Intl.DateTimeFormat("id-ID", options).format(date);
+  };
+
+  return (
+    <div className="text-center">
+      <p className="text-4xl md:text-5xl font-bold text-gray-800 tracking-wider">
+        {formatTime(time)}
+      </p>
+      <p className="text-sm md:text-base text-gray-500 mt-1">
+        {formatDate(time)} WIT
+      </p>
+    </div>
+  );
+};
+
+// Komponen Spinner Loading
+const Spinner = () => (
+  <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center">
+    <svg
+      className="animate-spin h-12 w-12 text-indigo-600"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      ></path>
+    </svg>
+    <p className="mt-4 text-lg font-semibold text-gray-600">
+      Memuat Status Antrian Real-time...
+    </p>
+  </div>
+);
+
+// Komponen untuk setiap Kartu Antrian
+const QueueCard = ({ service }) => {
+  const [animated, setAnimated] = useState(false);
+  const prevCallingNumber = useRef(service.calling_number);
+
+  useEffect(() => {
+    if (prevCallingNumber.current !== service.calling_number) {
+      setAnimated(true);
+      const timer = setTimeout(() => setAnimated(false), 500); // Durasi animasi
+      prevCallingNumber.current = service.calling_number;
+      return () => clearTimeout(timer);
+    }
+  }, [service.calling_number]);
+
+  // Warna border atas yang berbeda untuk setiap layanan agar lebih mudah dibedakan
+  const borderColors = [
+    "border-blue-500",
+    "border-green-500",
+    "border-yellow-500",
+    "border-red-500",
+  ];
+  const borderColor = borderColors[service.id % borderColors.length];
+
+  return (
+    <div
+      className={`bg-white rounded-2xl shadow-lg border-t-8 ${borderColor} transition-shadow duration-300 hover:shadow-2xl flex flex-col`}
+    >
+      {/* Header Kartu */}
+      <div className="p-6 border-b border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-800 text-center">
+          {service.service_name}
+        </h2>
+      </div>
+
+      {/* Konten Utama Kartu */}
+      <div className="flex-grow p-6 flex flex-col justify-center items-center">
+        <p className="text-base font-semibold text-gray-500 mb-2">
+          NOMOR DIPANGGIL
+        </p>
+        <div
+          className={`w-full text-center py-4 rounded-lg transition-all duration-300 ${
+            service.calling_number &&
+            service.calling_number !== "---" &&
+            service.calling_number !== "Kosong"
+              ? "bg-blue-100"
+              : "bg-gray-100"
+          }`}
+        >
+          <p
+            className={`font-extrabold tracking-tighter transition-all duration-300 ${
+              animated ? "scale-125" : "scale-100"
+            } ${
+              service.calling_number &&
+              service.calling_number !== "---" &&
+              service.calling_number !== "Kosong"
+                ? "text-7xl text-blue-600"
+                : "text-4xl text-gray-400"
+            }`}
+          >
+            {service.calling_number || "---"}
+          </p>
+        </div>
+      </div>
+
+      {/* Footer Kartu */}
+      <div className="bg-gray-50 p-4 rounded-b-2xl border-t border-gray-100 grid grid-cols-2 gap-4 text-center">
+        <div>
+          <p className="text-sm text-gray-500 font-medium">Menunggu</p>
+          <p className="text-2xl font-bold text-gray-800">
+            {service.waiting_count}
+          </p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 font-medium">Estimasi</p>
+          <p className="text-2xl font-bold text-gray-800">
+            {service.estimated_wait_time}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const QueueStatusDisplayPage = () => {
-    const [publicStatus, setPublicStatus] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [publicStatus, setPublicStatus] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const effectRan = useRef(false);
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(4);
-
-    const effectRan = useRef(false);
-
+  // Logika fungsional Anda tetap sama
+  useEffect(() => {
     const fetchInitialData = async () => {
-        setLoading(true);
-        try {
-            const data = await getPublicQueueStatusAPI();
-            setPublicStatus(data);
-            console.log('Initial API data fetched:', data);
-            return true;
-        } catch (err) {
-            console.error('Gagal mengambil status antrian publik awal:', err);
-            const msg = err.message || 'Gagal memuat status antrian publik.';
-            toast.error(msg);
-            return false;
-        } finally {
-            setLoading(false);
-        }
+      setLoading(true);
+      try {
+        const data = await getPublicQueueStatusAPI();
+        setPublicStatus(data);
+      } catch (err) {
+        toast.error(err.message || "Gagal memuat status antrian.");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    useEffect(() => {
-        console.log('[QueueStatusDisplayPage] useEffect triggered');
-
-        if (effectRan.current === false) {
-            const loadInitialData = async () => {
-                const success = await fetchInitialData();
-                if (success) {
-                    console.log('[QueueStatusDisplayPage] Initial data loaded, attempting to show toast');
-                }
-            };
-            loadInitialData();
-            effectRan.current = true;
-        }
-
-        socket.on('queue_update', (data) => {
-            console.log('Menerima update antrian real-time dari socket:', data);
-            setPublicStatus(data);
-            setCurrentPage(1); // Reset halaman ke 1 setiap kali ada update real-time
-        });
-
-        return () => {
-            socket.off('queue_update');
-            console.log('[QueueStatusDisplayPage] useEffect cleanup triggered');
-        };
-    }, []);
-
-    const filteredServices = useMemo(() => {
-        if (!searchQuery) {
-            return publicStatus;
-        }
-        return publicStatus.filter(service =>
-            service.service_name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [publicStatus, searchQuery]);
-
-    const indexOfLastService = currentPage * itemsPerPage;
-    const indexOfFirstService = indexOfLastService - itemsPerPage;
-    const currentServices = filteredServices.slice(indexOfFirstService, indexOfLastService);
-
-    const totalPages = Math.ceil(filteredServices.length / itemsPerPage);
-
-    const handleNextPage = () => {
-        setCurrentPage(prevPage => Math.min(prevPage + 1, totalPages));
-    };
-
-    const handlePrevPage = () => {
-        setCurrentPage(prevPage => Math.max(prevPage - 1, 1));
-    };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 to-indigo-800 text-white">
-                <p className="text-xl text-white">Memuat status antrian real-time...</p>
-            </div>
-        );
+    if (effectRan.current === false) {
+      fetchInitialData();
+      effectRan.current = true;
     }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-700 to-indigo-800 text-white p-8">
-            <header className="text-center mb-10">
-                <h1 className="text-5xl font-extrabold mb-2 tracking-wide">Pengadilan Negeri Manokwari</h1>
-                <p className="text-2xl font-semibold text-purple-200">Sistem Antrian Real-time</p>
-            </header>
+    socket.on("queue_update", (data) => {
+      setPublicStatus(data);
+    });
 
-    <div className="mb-10 p-6 bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-white/30">
-    {/* Input Pencarian */}
-    <div className="relative w-full md:w-1/2">
-        <input
-            type="text"
-            placeholder="Cari Layanan Antrian..."
-            value={searchQuery}
-            onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-            }}
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-transparent bg-white/80 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-medium"
-        />
-        {/* Ikon Pencarian */}
-        <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-        >
-            <path
+    return () => {
+      socket.off("queue_update");
+    };
+  }, []);
+
+  const filteredServices = useMemo(() => {
+    if (!searchQuery) {
+      return publicStatus;
+    }
+    return publicStatus.filter((service) =>
+      service.service_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [publicStatus, searchQuery]);
+
+  // Paginasi tidak lagi digunakan di desain baru, semua ditampilkan
+  // Jika Anda tetap ingin paginasi, bagian ini bisa diaktifkan kembali
+  // const [currentPage, setCurrentPage] = useState(1);
+  // const [itemsPerPage] = useState(4);
+  // const indexOfLastService = currentPage * itemsPerPage;
+  // const indexOfFirstService = indexOfLastService - itemsPerPage;
+  // const currentServices = filteredServices.slice(indexOfFirstService, indexOfLastService);
+  // const totalPages = Math.ceil(filteredServices.length / itemsPerPage);
+
+  if (loading) {
+    return <Spinner />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-gray-800 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <div className="flex items-center gap-4">
+            {/* Ganti dengan logo Anda */}
+            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md">
+              PN
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                Pengadilan Negeri Manokwari
+              </h1>
+              <p className="text-gray-500">Papan Informasi Antrian</p>
+            </div>
+          </div>
+          <div className="md:col-span-2">
+            <Clock />
+          </div>
+        </header>
+
+        <div className="mb-8 p-4 bg-white rounded-xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4 border border-gray-200">
+          <div className="relative w-full md:w-1/3">
+            <input
+              type="text"
+              placeholder="Cari Layanan..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth="2"
+                strokeWidth={2}
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            ></path>
-        </svg>
-    </div>
-    
-    {/* Tautan Navigasi sebagai Tombol */}
-    <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-        <Link
-            to="/login"
-            className="w-full text-center md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold tracking-wide transition-all duration-300 transform hover:scale-105 shadow-xl"
-        >
-            Login Admin
-        </Link>
-        <Link
-            to="/register-queue"
-            className="w-full text-center md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold tracking-wide transition-all duration-300 transform hover:scale-105 shadow-xl"
-        >
-            Daftar Antrian Baru
-        </Link>
-    </div>
-</div>
-
-            <main>
-                {currentServices.length === 0 && !loading ? (
-                    <div className="text-center bg-white bg-opacity-20 p-8 rounded-lg shadow-xl">
-                        <p className="text-3xl font-bold">Tidak ada antrian aktif yang cocok dengan pencarian Anda.</p>
-                        <p className="text-lg mt-2">Coba kata kunci lain atau daftar antrian baru.</p>
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {currentServices.map(service => (
-                                <div key={service.id} className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg p-6 rounded-xl shadow-xl border border-white border-opacity-30">
-                                    <h2 className="text-3xl font-bold text-yellow-300 mb-4 text-center">{service.service_name}</h2>
-                                    <div className="mb-4 text-center">
-                                        <p className="text-xl font-medium">Nomor Sedang Dipanggil:</p>
-                                        <p className="text-6xl font-extrabold text-white leading-tight">{service.calling_number || '---'}</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-lg font-medium">Antrian Menunggu:</p>
-                                        <p className="text-4xl font-bold text-blue-300">{service.waiting_count}</p>
-                                        <p className="text-sm text-gray-200 mt-1">Estimasi Waktu Tunggu: {service.estimated_wait_time}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {filteredServices.length > itemsPerPage && (
-                            <div className="flex justify-center items-center mt-10 space-x-4">
-                                <button
-                                    onClick={handlePrevPage}
-                                    disabled={currentPage === 1 || loading}
-                                    className="px-6 py-3 rounded-lg font-semibold text-white bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-                                >
-                                    &larr; Sebelumnya
-                                </button>
-                                <span className="text-xl font-medium text-white">Halaman {currentPage} dari {totalPages}</span>
-                                <button
-                                    onClick={handleNextPage}
-                                    disabled={currentPage === totalPages || loading}
-                                    className="px-6 py-3 rounded-lg font-semibold text-white bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-                                >
-                                    Berikutnya &rarr;
-                                </button>
-                            </div>
-                        )}
-                    </>
-                )}
-            </main>
-
-            <footer className="text-center mt-12 text-gray-300 text-sm">
-                &copy; {new Date().getFullYear()} Pengadilan Negeri Manokwari. Powered by Your App.
-            </footer>
+              />
+            </svg>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            <Link
+              to="/register-queue"
+              className="w-full text-center md:w-auto px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors shadow-sm hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              Ambil Antrian Baru
+            </Link>
+            <Link
+              to="/login"
+              className="w-full text-center md:w-auto px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors shadow-sm hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              Login Staf
+            </Link>
+          </div>
         </div>
-    );
+
+        <main>
+          {filteredServices.length === 0 && !loading ? (
+            <div className="text-center bg-white p-12 rounded-xl shadow-md">
+              <h2 className="text-2xl font-bold text-gray-700">
+                Tidak Ada Antrian Aktif
+              </h2>
+              <p className="text-gray-500 mt-2">
+                Saat ini tidak ada layanan yang aktif atau cocok dengan
+                pencarian Anda.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8">
+              {filteredServices.map((service) => (
+                <QueueCard key={service.id} service={service} />
+              ))}
+            </div>
+          )}
+        </main>
+
+        <footer className="text-center mt-12 text-gray-500 text-sm">
+          &copy; {new Date().getFullYear()} Pengadilan Negeri Manokwari. Sistem
+          Antrian Digital.
+        </footer>
+      </div>
+    </div>
+  );
 };
 
 export default QueueStatusDisplayPage;

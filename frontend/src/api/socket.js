@@ -1,28 +1,27 @@
 // src/api/socket.js
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 
-const SOCKET_SERVER_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+// UBAH BARIS INI: Gunakan VITE_SOCKET_URL, bukan VITE_API_BASE_URL
+const SOCKET_SERVER_URL =
+  import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+
+console.log(`[Socket.js] Attempting to connect to: ${SOCKET_SERVER_URL}`); // Log untuk debugging
 
 const socket = io(SOCKET_SERVER_URL, {
-    path: '/socket.io/', // <--- TAMBAHKAN BARIS INI
-    transports: ['websocket', 'polling'], // Prioritaskan websocket
-    // Anda bisa menambahkan opsi CORS jika diperlukan, tapi biasanya di server yang diatur
-    // cors: {
-    //     origin: import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173',
-    //     credentials: true
-    // }
+  // Opsi 'path' tidak diperlukan untuk konfigurasi standar, lebih baik dihapus
+  transports: ["websocket", "polling"], // Prioritaskan websocket
 });
 
-socket.on('connect', () => {
-    console.log('Connected to Socket.IO server:', socket.id);
+socket.on("connect", () => {
+  console.log("BERHASIL: Terhubung ke server Socket.IO. ID:", socket.id);
 });
 
-socket.on('disconnect', () => {
-    console.log('Disconnected from Socket.IO server');
+socket.on("disconnect", () => {
+  console.log("TERPUTUS: Koneksi ke server Socket.IO ditutup.");
 });
 
-socket.on('connect_error', (err) => {
-    console.error('Socket.IO connection error:', err.message);
+socket.on("connect_error", (err) => {
+  console.error("GAGAL KONEK: Error koneksi Socket.IO:", err.message);
 });
 
 export default socket;

@@ -1,4 +1,5 @@
 // controllers/queueController.js
+
 const db = require("../models"); // Mengimpor semua model Sequelize
 const OtpCode = db.OtpCode;
 const Queue = db.Queue;
@@ -10,13 +11,36 @@ const User = db.User; // Diperlukan untuk include relasi atau validasi user admi
 const { Op } = require("sequelize"); // Untuk operator Sequelize seperti Op.lt, Op.in
 require("dotenv").config();
 
-// Untuk mengirim email (Brevo)
-const Brevo = require("@getbrevo/brevo");
-const apiInstance = new Brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(
-  Brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY
-);
+// =====================================================================
+// --- PERUBAHAN DARI BREVO KE GMAIL (NODEMAILER) ---
+// =====================================================================
+
+// 1. Impor Nodemailer (library baru untuk mengirim email)
+const nodemailer = require("nodemailer");
+
+// 2. Hapus atau komentari kode Brevo
+// const Brevo = require("@getbrevo/brevo");
+// const apiInstance = new Brevo.TransactionalEmailsApi();
+// apiInstance.setApiKey(
+//   Brevo.TransactionalEmailsApiApiKeys.apiKey,
+//   process.env.BREVO_API_KEY
+// );
+
+// 3. Buat transporter Nodemailer untuk Gmail
+// Objek ini akan digunakan kembali untuk semua pengiriman email.
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // `true` untuk port 465, `false` untuk port lain (menggunakan STARTTLS)
+  auth: {
+    user: process.env.EMAIL_USER, // Email Anda dari file .env
+    pass: process.env.EMAIL_PASS, // Sandi Aplikasi Anda dari file .env
+  },
+});
+
+// =====================================================================
+// --- AKHIR PERUBAHAN ---
+// =====================================================================
 
 // Untuk real-time updates (akan diinisialisasi di server.js)
 let io;
@@ -24,32 +48,24 @@ const setIoInstance = (socketIoInstance) => {
   io = socketIoInstance;
 };
 
-// Helper function untuk mengirim notifikasi Email
+// Helper function untuk mengirim notifikasi Email (SUDAH DIUBAH MENGGUNAKAN NODEMAILER)
 const sendEmailNotification = async (toEmail, subject, htmlContent) => {
-  const sendSmtpEmail = new Brevo.SendSmtpEmail();
-
-  sendSmtpEmail.sender = {
-    email: process.env.BREVO_SENDER_EMAIL,
+  // Definisikan opsi email
+  const mailOptions = {
+    from: `"Antrian PN Manokwari" <${process.env.EMAIL_USER}>`, // Nama pengirim & email
+    to: toEmail,
+    subject: subject,
+    html: htmlContent,
   };
-  sendSmtpEmail.to = [{ email: toEmail }];
-  sendSmtpEmail.subject = subject;
-  sendSmtpEmail.htmlContent = htmlContent;
 
   try {
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log(`Email sent to ${toEmail} using Brevo: ${subject}`);
-    return true;
+    // Kirim email menggunakan transporter yang sudah dibuat
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${toEmail} using Gmail: ${subject}`);
+    return true; // Berhasil
   } catch (error) {
-    console.error(
-      `Error sending email to ${toEmail} with Brevo:`,
-      error.message
-    );
-    // BAGIAN INI SANGAT PENTING
-    if (error.response && error.response.text) {
-      console.error("Brevo API Response Status:", error.response.statusCode);
-      console.error("Brevo API Response Body:", error.response.text);
-    }
-    return false;
+    console.error(`Error sending email to ${toEmail} with Nodemailer:`, error);
+    return false; // Gagal
   }
 };
 
@@ -296,7 +312,7 @@ const requestOtp = async (req, res) => {
       customer_email,
       "Kode Verifikasi Antrian Pengadilan Negeri Manokwari",
       `Halo ${customer_name}, <br><br>Kode verifikasi Anda adalah: <strong>${otpCode}</strong>. <br><br>Kode ini berlaku selama ${
-        process.env.OTP_EXPIRES_MINUTES || 5
+        process.env.OTP_EXPIRES_MINUTES || 10
       } menit. Jangan bagikan kode ini kepada siapapun.<br><br>Terima kasih.`
     );
 
@@ -323,9 +339,9 @@ const requestOtp = async (req, res) => {
   }
 };
 
-// controllers/queueController.js
-
-// ... (imports lainnya dan fungsi-fungsi di atasnya) ...
+// ... Sisa kode controller Anda sama persis dan tidak perlu diubah ...
+// Pastikan semua fungsi lainnya dari file asli Anda tetap ada di sini.
+// Saya hanya akan menyalin sisa fungsi Anda agar lengkap.
 
 // 2. Memverifikasi Kode OTP dan Membuat Antrian
 const verifyOtpAndCreateQueue = async (req, res) => {
@@ -391,9 +407,6 @@ const verifyOtpAndCreateQueue = async (req, res) => {
 
     await otpRecord.update({ is_used: true, is_verified: true });
 
-    // --- PERBAIKAN UTAMA DI SINI ---
-    // Dapatkan nomor antrian harian berikutnya untuk layanan ini
-    // Gunakan findAll (mengembalikan array) dan pastikan penanganan jika array kosong
     const existingQueuesForServiceToday = await Queue.findAll({
       where: {
         service_id: service_id,
@@ -404,14 +417,11 @@ const verifyOtpAndCreateQueue = async (req, res) => {
     });
 
     let nextQueueNumberDaily = 1;
-    // Jika ada antrian sebelumnya, ambil nomor antrian harian terakhir + 1
     if (existingQueuesForServiceToday.length > 0) {
       nextQueueNumberDaily =
         existingQueuesForServiceToday[0].queue_number_daily + 1;
     }
-    // --- AKHIR PERBAIKAN UTAMA ---
 
-    // Dapatkan prefix layanan dan nama layanan
     const service = await Service.findByPk(service_id);
     if (!service) {
       throw new Error("Service not found.");
@@ -419,7 +429,6 @@ const verifyOtpAndCreateQueue = async (req, res) => {
     const fullQueueNumber =
       service.service_prefix + String(nextQueueNumberDaily).padStart(3, "0");
 
-    // Buat antrian baru
     const newQueue = await Queue.create({
       service_id: service_id,
       queue_date: formattedToday,
@@ -432,19 +441,17 @@ const verifyOtpAndCreateQueue = async (req, res) => {
       otp_verified_at: new Date(),
     });
 
-    // Notifikasi konfirmasi antrian via Email
     const confirmationEmailSent = await sendEmailNotification(
       customer_email,
       "Konfirmasi Nomor Antrian Pengadilan Negeri Manokwari",
       `Terima kasih, ${customer_name}! <br><br>Anda telah berhasil mendaftar antrian untuk layanan <strong>${service.service_name}</strong>. <br><br>Nomor antrian Anda adalah: <strong>${newQueue.full_queue_number}</strong>.<br><br>Harap pantau status antrian Anda melalui website kami.<br><br>Terima kasih.`
     );
-    // Notifikasi konfirmasi antrian via WhatsApp (jika diimplementasikan)
     await sendWhatsAppNotification(
       customer_phone_number,
       `Terima kasih, ${customer_name}! Nomor antrian Anda untuk layanan ${service.service_name} adalah ${newQueue.full_queue_number}. Pantau status di website.`
     );
 
-    emitQueueUpdate(service.id); // Emit update ke semua client
+    emitQueueUpdate(service.id);
     res.status(201).json({
       message: "Antrian berhasil dibuat!",
       queue: {
@@ -460,9 +467,6 @@ const verifyOtpAndCreateQueue = async (req, res) => {
   }
 };
 
-// ... (sisa kode controller) ...
-
-// 3. Mendapatkan Status Antrian Publik (Real-time Display)
 const getPublicQueueStatus = async (req, res) => {
   try {
     const publicStatusData = await preparePublicQueueData();
@@ -473,7 +477,6 @@ const getPublicQueueStatus = async (req, res) => {
   }
 };
 
-// 4. Mendapatkan status antrian spesifik untuk pengguna (berdasarkan email)
 const getMyQueueStatus = async (req, res) => {
   const { email } = req.query;
 
@@ -493,9 +496,9 @@ const getMyQueueStatus = async (req, res) => {
         queue_date: formattedToday,
         status: {
           [Op.notIn]: ["expired", "completed"],
-        }, // Hanya cek yang belum expired/completed
+        },
       },
-      include: [{ model: Service, as: "service" }], // Join dengan Service untuk service_name
+      include: [{ model: Service, as: "service" }],
     });
 
     if (!myQueue) {
@@ -523,13 +526,13 @@ const getMyQueueStatus = async (req, res) => {
         current_calling_number: currentCalling
           ? currentCalling.full_queue_number
           : "Belum ada",
-        queues_in_front: "N/A", // Posisi belum relevan
+        queues_in_front: "N/A",
         estimated_wait_time: "N/A",
       });
     }
 
     if (myQueue.status === "waiting" || myQueue.status === "on_hold") {
-      const myNum = myQueue.queue_number_daily; // Langsung ambil nomor harian
+      const myNum = myQueue.queue_number_daily;
       const serviceDuration = myQueue.service
         ? myQueue.service.estimated_duration_minutes
         : 10;
@@ -538,22 +541,6 @@ const getMyQueueStatus = async (req, res) => {
         const callingNum = currentCalling.queue_number_daily;
 
         if (myNum > callingNum) {
-          const queuesInFrontCount = await Queue.count({
-            where: {
-              service_id: myQueue.service_id,
-              queue_date: formattedToday,
-              status: {
-                [Op.in]: ["waiting", "calling", "on_hold"],
-              },
-              queue_number_daily: {
-                [Op.gt]: callingNum, // Setelah yang sedang dipanggil
-                [Op.lt]: myNum, // Sebelum antrian saya
-              },
-            },
-          });
-          position = queuesInFrontCount; // Jumlah antrian di depan + yang sedang dipanggil
-          // Sebenarnya, posisi adalah jumlah di depan yang menunggu + yang sedang dipanggil + yang on_hold di depan
-          // Simplifikasi: jumlah yang menunggu antara currentCalling dan saya + 1 (yang sedang dipanggil)
           position =
             (await Queue.count({
               where: {
@@ -564,27 +551,25 @@ const getMyQueueStatus = async (req, res) => {
                 },
                 queue_number_daily: {
                   [Op.lte]: myNum,
-                }, // Semua antrian <= nomor saya
+                },
               },
-            })) - 1; // Kurangi 1 karena saya sendiri dihitung
+            })) - 1;
 
-          if (position < 0) position = 0; // Pastikan tidak negatif
+          if (position < 0) position = 0;
 
           estimatedTime = `${position * serviceDuration} min`;
         } else {
-          // myNum <= callingNum, berarti saya sudah dipanggil atau di depan
           position = 0;
           estimatedTime = "Segera";
         }
       } else {
-        // Belum ada yang calling sama sekali, hitung dari awal
         const queuesInFrontCount = await Queue.count({
           where: {
             service_id: myQueue.service_id,
             queue_date: formattedToday,
             status: {
               [Op.in]: ["waiting", "on_hold"],
-            }, // Hanya menunggu dan ditunda
+            },
             queue_number_daily: {
               [Op.lt]: myNum,
             },
@@ -603,7 +588,7 @@ const getMyQueueStatus = async (req, res) => {
 
     res.status(200).json({
       message: "Status antrian Anda:",
-      queue: myQueue, // myQueue sudah mengandung service.service_name karena include
+      queue: myQueue,
       current_calling_number: currentCalling
         ? currentCalling.full_queue_number
         : "Belum ada",
@@ -616,7 +601,6 @@ const getMyQueueStatus = async (req, res) => {
   }
 };
 
-// 5. Mengambil Ulang Antrian (untuk pengguna yang terlewat)
 const requeueMissed = async (req, res) => {
   const { customer_email, service_id } = req.body;
 
@@ -632,14 +616,12 @@ const requeueMissed = async (req, res) => {
       today.getMonth() + 1
     ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-    // Cari antrian yang terlewat untuk email ini
     const missedQueue = await Queue.findOne({
-      // Gunakan findOne
       where: {
         customer_email: customer_email,
         queue_date: formattedToday,
         status: "missed",
-        service_id: service_id, // Pastikan layanan juga cocok
+        service_id: service_id,
       },
     });
 
@@ -649,10 +631,8 @@ const requeueMissed = async (req, res) => {
       });
     }
 
-    // Tandai antrian lama sebagai 'recalled' agar tidak bisa di-requeue lagi
     await missedQueue.update({ status: "recalled" });
 
-    // Buat antrian baru dengan status 'waiting'
     const newQueue = await Queue.create({
       service_id: service_id,
       queue_date: formattedToday,
@@ -661,13 +641,12 @@ const requeueMissed = async (req, res) => {
       customer_phone_number: missedQueue.customer_phone_number,
       status: "waiting",
       otp_verified_at: new Date(),
-      // Nomor antrian harian harus dihitung lagi untuk yang baru
       queue_number_daily:
         (await Queue.count({
           where: { service_id: service_id, queue_date: formattedToday },
         })) + 1,
     });
-    // Dapatkan service detail untuk nama layanan
+
     const service = await Service.findByPk(service_id);
     if (!service) {
       throw new Error("Service not found for new queue.");
@@ -675,9 +654,8 @@ const requeueMissed = async (req, res) => {
     newQueue.full_queue_number =
       service.service_prefix +
       String(newQueue.queue_number_daily).padStart(3, "0");
-    await newQueue.save(); // Simpan full_queue_number yang baru
+    await newQueue.save();
 
-    // Notifikasi konfirmasi antrian ulang
     await sendEmailNotification(
       newQueue.customer_email,
       "Konfirmasi Antrian Ulang Pengadilan Negeri Manokwari",
@@ -700,36 +678,25 @@ const requeueMissed = async (req, res) => {
   }
 };
 
-// --- API Admin (Staf Pengadilan) ---
-
-// 1. Mendapatkan daftar antrian untuk loket admin
 const getQueuesForAdmin = async (req, res) => {
-  const { serviceId } = req.params; // serviceId dari URL params (string)
+  const { serviceId } = req.params;
   const formattedToday = `${new Date().getFullYear()}-${String(
     new Date().getMonth() + 1
   ).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
 
-  console.log(
-    `[Backend QM] Received request for serviceId: ${serviceId} on date: ${formattedToday}`
-  );
-  console.log(
-    `[Backend QM] Type of serviceId (from params): ${typeof serviceId}`
-  );
-
   try {
-    const selectedServiceIdInt = parseInt(serviceId); // Pastikan ini integer
+    const selectedServiceIdInt = parseInt(serviceId);
 
-    // Dapatkan antrian aktif untuk layanan ini
     const queuesForService = await Queue.findAll({
       where: {
-        service_id: selectedServiceIdInt, // Gunakan integer di sini
+        service_id: selectedServiceIdInt,
         queue_date: formattedToday,
         status: {
           [Op.in]: ["waiting", "calling", "on_hold"],
         },
       },
       order: [["queue_number_daily", "ASC"]],
-      include: [{ model: Service, as: "service" }], // Sertakan detail layanan
+      include: [{ model: Service, as: "service" }],
     });
 
     const currentCalling = queuesForService.find((q) => q.status === "calling");
@@ -737,18 +704,9 @@ const getQueuesForAdmin = async (req, res) => {
       (q) => q.status === "waiting" || q.status === "on_hold"
     );
 
-    console.log(
-      `[Backend QM] Queues for service ID ${serviceId} (total active):`,
-      queuesForService.length
-    );
-    console.log(
-      `[Backend QM] Filtered waiting/on_hold queues for service ID ${serviceId}:`,
-      waitingQueues.length
-    );
-
     res.status(200).json({
-      currentCalling: currentCalling ? currentCalling.toJSON() : null, // Convert to JSON
-      waitingQueues: waitingQueues.map((q) => q.toJSON()), // Convert to JSON
+      currentCalling: currentCalling ? currentCalling.toJSON() : null,
+      waitingQueues: waitingQueues.map((q) => q.toJSON()),
     });
   } catch (error) {
     console.error(
@@ -759,14 +717,9 @@ const getQueuesForAdmin = async (req, res) => {
   }
 };
 
-// 2. Memanggil antrian berikutnya
 const callNextQueue = async (req, res) => {
   const { serviceId } = req.params;
   const adminId = req.user.id;
-
-  console.log(
-    `[Backend QM] Call Next for serviceId: ${serviceId} by admin: ${adminId}`
-  );
 
   try {
     const formattedToday = `${new Date().getFullYear()}-${String(
@@ -774,7 +727,6 @@ const callNextQueue = async (req, res) => {
     ).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
     const selectedServiceIdInt = parseInt(serviceId);
 
-    // Cari antrian yang sedang dipanggil untuk layanan ini
     const existingCalling = await Queue.findOne({
       where: {
         service_id: selectedServiceIdInt,
@@ -789,12 +741,8 @@ const callNextQueue = async (req, res) => {
         completion_time: new Date(),
         completed_by_user_id: adminId,
       });
-      console.log(
-        `[Backend QM] Previous calling queue ${existingCalling.full_queue_number} marked completed.`
-      );
     }
 
-    // Cari antrian waiting berikutnya
     const nextQueue = await Queue.findOne({
       where: {
         service_id: selectedServiceIdInt,
@@ -816,9 +764,6 @@ const callNextQueue = async (req, res) => {
       called_time: new Date(),
       called_by_user_id: adminId,
     });
-    console.log(
-      `[Backend QM] Calling next queue: ${nextQueue.full_queue_number}`
-    );
 
     const setting = await SystemSetting.findOne({
       where: { setting_key: "notification_threshold" },
@@ -826,7 +771,7 @@ const callNextQueue = async (req, res) => {
     const notificationThreshold = parseInt(
       setting ? setting.setting_value : "3"
     );
-    const currentCallingQueueNumber = nextQueue.queue_number_daily; // Langsung ambil nomor harian
+    const currentCallingQueueNumber = nextQueue.queue_number_daily;
 
     const upcomingQueues = await Queue.findAll({
       where: {
@@ -835,11 +780,11 @@ const callNextQueue = async (req, res) => {
         status: "waiting",
         queue_number_daily: {
           [Op.gt]: currentCallingQueueNumber,
-        }, // Setelah yang sedang dipanggil
+        },
       },
       order: [["queue_number_daily", "ASC"]],
       limit: notificationThreshold,
-      include: [{ model: Service, as: "service" }], // Join untuk service_name
+      include: [{ model: Service, as: "service" }],
     });
 
     for (const q of upcomingQueues) {
@@ -854,7 +799,7 @@ const callNextQueue = async (req, res) => {
       );
     }
 
-    const calledService = await Service.findByPk(selectedServiceIdInt); // Dapatkan nama layanan untuk email panggilan utama
+    const calledService = await Service.findByPk(selectedServiceIdInt);
     await sendEmailNotification(
       nextQueue.customer_email,
       "Nomor Antrian Anda Dipanggil!",
@@ -876,15 +821,10 @@ const callNextQueue = async (req, res) => {
   }
 };
 
-// 3. Menandai antrian (Selesai, Terlewat, Ditunda)
 const markQueueStatus = async (req, res) => {
   const { queueId } = req.params;
-  const { status } = req.body; // 'completed', 'missed', 'on_hold'
-  const adminId = req.user.id; // User dari JWT
-
-  console.log(
-    `[Backend QM] Marking queue ${queueId} as ${status} by admin: ${adminId}`
-  );
+  const { status } = req.body;
+  const adminId = req.user.id;
 
   if (!["completed", "missed", "on_hold"].includes(status)) {
     return res.status(400).json({ message: "Invalid status provided." });
@@ -892,7 +832,7 @@ const markQueueStatus = async (req, res) => {
 
   try {
     const queue = await Queue.findByPk(queueId, {
-      include: [{ model: Service, as: "service" }], // Include service for email notif
+      include: [{ model: Service, as: "service" }],
     });
     if (!queue) {
       return res.status(404).json({ message: "Antrian tidak ditemukan." });
@@ -905,11 +845,9 @@ const markQueueStatus = async (req, res) => {
     } else if (status === "missed") {
       updateData.missed_time = new Date();
     }
-    // Jika on_hold, tidak ada timestamp khusus
 
     await queue.update(updateData);
 
-    // Jika status 'missed', kirim notifikasi khusus
     if (status === "missed") {
       await sendEmailNotification(
         queue.customer_email,
@@ -935,14 +873,9 @@ const markQueueStatus = async (req, res) => {
   }
 };
 
-// 4. Memanggil Ulang Antrian Terakhir (jika admin tidak sengaja melewatkan/salah panggil)
 const recallLastCalledQueue = async (req, res) => {
   const { serviceId } = req.params;
   const adminId = req.user.id;
-
-  console.log(
-    `[Backend QM] Recalling last queue for serviceId: ${serviceId} by admin: ${adminId}`
-  );
 
   try {
     const formattedToday = `${new Date().getFullYear()}-${String(
@@ -950,15 +883,14 @@ const recallLastCalledQueue = async (req, res) => {
     ).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
     const selectedServiceIdInt = parseInt(serviceId);
 
-    // Cari antrian yang statusnya 'calling' untuk service ini
     const lastCalled = await Queue.findOne({
       where: {
         service_id: selectedServiceIdInt,
         queue_date: formattedToday,
         status: "calling",
       },
-      order: [["called_time", "DESC"]], // Ambil yang paling baru dipanggil
-      include: [{ model: Service, as: "service" }], // Join untuk nama layanan
+      order: [["called_time", "DESC"]],
+      include: [{ model: Service, as: "service" }],
     });
 
     if (!lastCalled) {
@@ -968,8 +900,7 @@ const recallLastCalledQueue = async (req, res) => {
       });
     }
 
-    // Tandai sebagai 'calling' lagi
-    await lastCalled.update({ status: "calling", called_by_user_id: adminId }); // Update called_by_user_id juga
+    await lastCalled.update({ status: "calling", called_by_user_id: adminId });
 
     await sendEmailNotification(
       lastCalled.customer_email,
@@ -995,9 +926,8 @@ const recallLastCalledQueue = async (req, res) => {
   }
 };
 
-// --- API Laporan (Super Admin) ---
 const getQueueReport = async (req, res) => {
-  const { startDate, endDate, serviceId } = req.query; // Ambil dari query params
+  const { startDate, endDate, serviceId } = req.query;
 
   if (!startDate || !endDate) {
     return res
@@ -1021,8 +951,8 @@ const getQueueReport = async (req, res) => {
         [
           db.sequelize.fn("DATE", db.sequelize.col("Queue.registration_time")),
           "date",
-        ], // Group by date
-        [db.sequelize.col("service.service_name"), "service_name"], // Join to get service name
+        ],
+        [db.sequelize.col("service.service_name"), "service_name"],
         [
           db.sequelize.fn("COUNT", db.sequelize.col("Queue.id")),
           "total_queues",
@@ -1077,13 +1007,13 @@ const getQueueReport = async (req, res) => {
         {
           model: Service,
           as: "service",
-          attributes: [], // Don't select service attributes directly, only for grouping/joining
+          attributes: [],
         },
       ],
       group: [
         db.sequelize.fn("DATE", db.sequelize.col("Queue.registration_time")),
         "service.service_name",
-      ], // Group by date and service name
+      ],
       order: [
         [
           db.sequelize.fn("DATE", db.sequelize.col("Queue.registration_time")),
