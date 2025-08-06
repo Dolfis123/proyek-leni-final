@@ -22,6 +22,11 @@ const Holiday = db.Holiday;
  * @param {Function} next - Fungsi callback untuk melanjutkan ke middleware/controller berikutnya.
  */
 const checkOperationalStatus = async (req, res, next) => {
+  console.log(
+    "--- Middleware checkOperationalStatus dijalankan dengan kode baru pada:",
+    new Date().toString()
+  );
+
   try {
     // 1. Gunakan moment-timezone untuk mendapatkan waktu saat ini di zona waktu WIT (Asia/Jayapura)
     const currentMoment = moment().tz("Asia/Jayapura");
@@ -106,6 +111,7 @@ const checkOperationalStatus = async (req, res, next) => {
   } catch (error) {
     // Tangani error internal jika terjadi masalah saat query database, dll.
     console.error("Error in checkOperationalStatus middleware:", error);
+
     return res.status(500).json({
       message:
         "Terjadi kesalahan pada server saat memeriksa status operasional.",
