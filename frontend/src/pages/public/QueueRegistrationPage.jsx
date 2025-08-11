@@ -277,7 +277,7 @@ const QueueRegistrationPage = () => {
 
       const response = await requestOtp(formData);
       setOtpSentMessage(response.message); // --- Mengubah timer ke 120 detik (2 menit) ---
-      setResendTimer(180);
+      setResendTimer(60);
       setStep(3);
       toast.success(response.message);
     } catch (err) {
