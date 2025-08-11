@@ -277,7 +277,7 @@ const QueueRegistrationPage = () => {
 
       const response = await requestOtp(formData);
       setOtpSentMessage(response.message); // --- Mengubah timer ke 120 detik (2 menit) ---
-      setResendTimer(60);
+      setResendTimer(180);
       setStep(3);
       toast.success(response.message);
     } catch (err) {
@@ -349,7 +349,7 @@ const QueueRegistrationPage = () => {
     try {
       const response = await requestOtp(formData);
       setOtpSentMessage(response.message); // --- Mengubah timer ke 120 detik (2 menit) ---
-      setResendTimer(120);
+      setResendTimer(180);
       toast.success(response.message || "Kode OTP berhasil dikirim ulang.");
     } catch (err) {
       console.error("Gagal mengirim ulang OTP:", err);
