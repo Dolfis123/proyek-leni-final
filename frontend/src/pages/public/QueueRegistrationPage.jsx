@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -226,71 +227,46 @@ const QueueRegistrationPage = () => {
     }
   }; // --- Handler: Ketika Pengguna Meminta Kode Verifikasi (OTP) ---
 
+  // --- Handler: Ketika Pengguna Meminta Kode Verifikasi (OTP) ---
+  // Versi ini telah disederhanakan. Semua logika untuk memeriksa antrian yang ada
+  // (seperti memanggil getMyQueueStatus) telah dihapus dari sini karena
+  // validasi tersebut sekarang sepenuhnya ditangani oleh backend.
   const handleRequestOtp = async (e) => {
+    // Mencegah form dari reload halaman
     e.preventDefault();
 
+    // Validasi input di sisi frontend terlebih dahulu
     if (!validateFormData()) {
       toast.warn("Mohon lengkapi semua data dengan benar.");
       return;
     }
 
+    // Mengaktifkan status loading
     setLoading(true);
     setOtpSentMessage("");
     setOtpCode("");
 
     try {
-      let userHasExistingQueue = false;
-      let existingQueueData = null;
-
-      const myStatusResponse = await getMyQueueStatus(formData.customer_email);
-
-      if (myStatusResponse && myStatusResponse.queue) {
-        userHasExistingQueue = true;
-        existingQueueData = myStatusResponse.queue;
-      }
-
-      if (userHasExistingQueue) {
-        if (existingQueueData.status === "missed") {
-          if (existingQueueData.service_id === selectedService.id) {
-            if (
-              window.confirm(
-                `Anda memiliki antrian terlewat (${existingQueueData.full_queue_number}) untuk layanan ${existingQueueData.service_name} hari ini. Apakah Anda ingin mengambil ulang antrian?`
-              )
-            ) {
-              await handleRequeueMissed(
-                formData.customer_email,
-                selectedService.id
-              );
-              return;
-            }
-          } else {
-            // missed tapi layanan lain, lanjut daftar baru
-          }
-        } else {
-          const msg =
-            "Anda sudah memiliki antrian aktif hari ini untuk layanan ini atau layanan lain. Mohon pantau antrian Anda.";
-          toast.info(msg);
-          setLoading(false);
-          return;
-        }
-      }
-
+      // Langsung panggil API untuk meminta OTP.
+      // Backend akan melakukan validasi apakah pengguna sudah punya antrian aktif.
+      // Jika sudah ada, backend akan mengembalikan error 409 yang akan ditangkap oleh blok 'catch'.
       const response = await requestOtp(formData);
-      setOtpSentMessage(response.message); // --- Mengubah timer ke 120 detik (2 menit) ---
-      setResendTimer(180);
+
+      // Jika permintaan berhasil (tidak ada antrian aktif), lanjutkan ke langkah verifikasi OTP.
+      setOtpSentMessage(response.message);
+      setResendTimer(180); // Atur timer kirim ulang (misal: 3 menit)
       setStep(3);
       toast.success(response.message);
     } catch (err) {
+      // Blok 'catch' ini akan secara otomatis menangkap pesan error dari backend,
+      // termasuk pesan "Anda sudah memiliki antrian aktif hari ini...".
       console.error("Gagal meminta OTP:", err);
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        "Gagal mengirim OTP. Silakan coba lagi.";
-      toast.error(msg);
+      toast.error(err.message || "Gagal mengirim OTP. Silakan coba lagi.");
     } finally {
+      // Nonaktifkan status loading, baik berhasil maupun gagal
       setLoading(false);
     }
-  }; // --- Handler: Ketika Pengguna Memverifikasi Kode OTP dan navigasi langsung ---
+  };
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
