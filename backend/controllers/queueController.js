@@ -382,12 +382,9 @@ const verifyOtpAndCreateQueue = async(req, res) => {
     if (!service_id ||
         !customer_name ||
         !customer_email ||
-        !customer_phone_number ||
-        !otp_code
+        !customer_phone_number
     ) {
-        return res
-            .status(400)
-            .json({ message: "All fields and OTP are required." });
+        return res.status(400).json({ message: "Semua kolom wajib diisi." });
     }
 
     try {
