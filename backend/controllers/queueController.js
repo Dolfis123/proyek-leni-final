@@ -75,97 +75,119 @@ const sendWhatsAppNotification = async(phoneNumber, message) => {
     return false;
 };
 
-// --- Middleware Pengecekan Jam Operasional & Hari Libur ---
-const checkOperationalStatus = async(req, res, next) => {
-    const currentMoment = new Date();
-    const currentHour = currentMoment.getHours();
-    const currentMinute = currentMoment.getMinutes();
+// Pastikan Anda sudah mengimpor moment-timezone di bagian atas file Anda:
+// const moment = require("moment-timezone");
+// const db = require("../models"); // (Anda mungkin sudah punya ini)
+// const Holiday = db.Holiday; // (Anda mungkin sudah punya ini)
+// const SystemSetting = db.SystemSetting; // (Anda mungkin sudah punya ini)
+// const { Op } = require("sequelize"); // (Anda mungkin sudah punya ini)
 
-    // Cek Hari Libur
-    const holiday = await Holiday.findOne({
-        where: { holiday_date: currentMoment.toISOString().slice(0, 10) },
-    });
-    if (holiday) {
-        return res
-            .status(403)
-            .json({ message: `Layanan tutup hari ini: ${holiday.holiday_name}` });
-    }
 
-    // Ambil jam operasional dari settings
-    const settingKeys = [
-        "monday_open_time",
-        "monday_close_time",
-        "monday_break_start_time",
-        "monday_break_end_time",
-    ];
-    const settings = await SystemSetting.findAll({
-        where: {
-            setting_key: {
-                [Op.in]: settingKeys,
-            },
-        },
-    });
-    const getSettingValue = (key, defaultValue) => {
-        const setting = settings.find((s) => s.setting_key === key);
-        return setting ? setting.setting_value : defaultValue;
-    };
+// --- Middleware Pengecekan Jam Operasional & Hari Libur (VERSI DIPERBAIKI) ---
+const checkOperationalStatus = async(req, res, next) => {  
+    try {
+        // --- PERUBAHAN DIMULAI ---
+        // 1. Gunakan moment-timezone untuk mendapatkan waktu di 'Asia/Jayapura' (WIT)
+        const currentMomentWIT = moment().tz("Asia/Jayapura");
+        const currentHour = currentMomentWIT.hour();
+        const currentMinute = currentMomentWIT.minute();
+        // Dapatkan tanggal hari ini dalam format YYYY-MM-DD sesuai WIT
+        const todayDateWIT = currentMomentWIT.format("YYYY-MM-DD");
+        // --- PERUBAHAN SELESAI ---
 
-    const openTimeStr = getSettingValue("monday_open_time", "08:00");
-    const closeTimeStr = getSettingValue("monday_close_time", "16:00");
-    const breakStartTimeStr = getSettingValue("monday_break_start_time", "12:00");
-    const breakEndTimeStr = getSettingValue("monday_break_end_time", "13:00");
-
-    const parseTimeToMinutes = (timeStr) => {
-        const [h, m] = timeStr.split(":").map(Number);
-        return h * 60 + m;
-    };
-
-    let openMinutes = parseTimeToMinutes(openTimeStr);
-    let closeMinutes = parseTimeToMinutes(closeTimeStr);
-    let breakStartMinutes = parseTimeToMinutes(breakStartTimeStr);
-    let breakEndMinutes = parseTimeToMinutes(breakEndTimeStr);
-
-    let currentMinutes = currentHour * 60 + currentMinute;
-
-    // Logika Penyesuaian untuk Waktu Lintas Tengah Malam
-    if (closeMinutes < openMinutes) {
-        closeMinutes += 24 * 60;
-        if (currentMinutes < openMinutes) {
-            currentMinutes += 24 * 60;
-        }
-    }
-
-    if (breakEndMinutes < breakStartMinutes) {
-        breakEndMinutes += 24 * 60;
-        if (currentMinutes < breakStartMinutes && currentMinutes < openMinutes) {
-            currentMinutes += 24 * 60;
-        }
-    }
-
-    // Pengecekan Jam Operasional Utama
-    if (currentMinutes < openMinutes || currentMinutes > closeMinutes) {
-        return res.status(403).json({
-            message: `Layanan tutup. Jam operasional: ${openTimeStr} - ${closeTimeStr} WIT.`,
+        // Cek Hari Libur (Sekarang menggunakan tanggal WIT yang benar)
+        const holiday = await Holiday.findOne({
+            where: { holiday_date: todayDateWIT }, // Menggunakan todayDateWIT
         });
-    }
+        if (holiday) {
+            return res
+                .status(403)
+                .json({ message: `Layanan tutup hari ini: ${holiday.holiday_name}` });
+        }
 
-    // Pengecekan Jam Istirahat
-    if (
-        currentMinutes >= breakStartMinutes &&
-        currentMinutes <= breakEndMinutes
-    ) {
-        if (
-            req.path.includes("/request-otp") ||
-            req.path.includes("/verify-otp-and-create")
-        ) {
-            next();
-        } else {
+        // Ambil jam operasional dari settings (Sisa kode Anda sudah benar)
+        const settingKeys = [
+            "monday_open_time",
+            "monday_close_time",
+            "monday_break_start_time",
+            "monday_break_end_time",
+        ];
+        const settings = await SystemSetting.findAll({
+            where: {
+                setting_key: {
+                    [Op.in]: settingKeys,
+                },
+            },
+        });
+        const getSettingValue = (key, defaultValue) => {
+            const setting = settings.find((s) => s.setting_key === key);
+            return setting ? setting.setting_value : defaultValue;
+        };
+
+        const openTimeStr = getSettingValue("monday_open_time", "08:00");
+        const closeTimeStr = getSettingValue("monday_close_time", "16:00");
+        const breakStartTimeStr = getSettingValue("monday_break_start_time", "12:00");
+        const breakEndTimeStr = getSettingValue("monday_break_end_time", "13:00");
+
+        const parseTimeToMinutes = (timeStr) => {
+            const [h, m] = timeStr.split(":").map(Number);
+            return h * 60 + m;
+        };
+
+        let openMinutes = parseTimeToMinutes(openTimeStr);
+        let closeMinutes = parseTimeToMinutes(closeTimeStr);
+        let breakStartMinutes = parseTimeToMinutes(breakStartTimeStr);
+        let breakEndMinutes = parseTimeToMinutes(breakEndTimeStr);
+
+        // Perhitungan ini sekarang benar karena currentHour dan currentMinute berasal dari WIT
+        let currentMinutes = currentHour * 60 + currentMinute;
+
+        // Logika Penyesuaian untuk Waktu Lintas Tengah Malam (Kode ini sudah benar)
+        if (closeMinutes < openMinutes) {
+            closeMinutes += 24 * 60;
+            if (currentMinutes < openMinutes) {
+                currentMinutes += 24 * 60;
+            }
+        }
+
+        if (breakEndMinutes < breakStartMinutes) {
+            breakEndMinutes += 24 * 60;
+            if (currentMinutes < breakStartMinutes && currentMinutes < openMinutes) {
+                currentMinutes += 24 * 60;
+            }
+        }
+
+        // Pengecekan Jam Operasional Utama (Kode ini sudah benar)
+        if (currentMinutes < openMinutes || currentMinutes > closeMinutes) {
             return res.status(403).json({
-                message: `Layanan sedang istirahat. Akan dilanjutkan pukul ${breakEndTimeStr} WIT.`,
+                message: `Layanan tutup. Jam operasional: ${openTimeStr} - ${closeTimeStr} WIT.`,
             });
         }
-    } else {
-        next();
+
+        // Pengecekan Jam Istirahat (Kode ini sudah benar)
+        if (
+            currentMinutes >= breakStartMinutes &&
+            currentMinutes <= breakEndMinutes
+        ) {
+            if (
+                req.path.includes("/request-otp") ||
+                req.path.includes("/verify-otp-and-create")
+            ) {
+                next();
+            } else {
+                return res.status(403).json({
+                    message: `Layanan sedang istirahat. Akan dilanjutkan pukul ${breakEndTimeStr} WIT.`,
+                });
+            }
+        } else {
+            next();
+        }
+    } catch (error) {
+        // Tambahkan penanganan error untuk middleware
+        console.error("Error in checkOperationalStatus middleware:", error);
+        return res.status(500).json({
+            message: "Terjadi kesalahan internal saat memeriksa jam operasional."
+        });
     }
 };
 
@@ -382,9 +404,12 @@ const verifyOtpAndCreateQueue = async(req, res) => {
     if (!service_id ||
         !customer_name ||
         !customer_email ||
-        !customer_phone_number
+        !customer_phone_number ||
+        !otp_code
     ) {
-        return res.status(400).json({ message: "Semua kolom wajib diisi." });
+        return res
+            .status(400)
+            .json({ message: "All fields and OTP are required." });
     }
 
     try {
@@ -1060,6 +1085,7 @@ const getQueueReport = async(req, res) => {
 
 module.exports = {
     setIoInstance,
+    checkOperationalStatus,
     requestOtp,
     verifyOtpAndCreateQueue,
     getPublicQueueStatus,

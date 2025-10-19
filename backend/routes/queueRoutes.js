@@ -1,6 +1,7 @@
 // routes/queueRoutes.js
 const express = require("express");
 const {
+    checkOperationalStatus,
     requestOtp,
     verifyOtpAndCreateQueue,
     getPublicQueueStatus,
@@ -18,15 +19,15 @@ const router = express.Router();
 
 // --- Public Routes (Untuk Pengguna Website) ---
 // Middleware checkOperationalStatus diterapkan untuk semua rute publik yang memengaruhi pendaftaran
-router.post("/request-otp", verifyOtpAndCreateQueue, requestOtp);
+router.post("/request-otp", checkOperationalStatus, requestOtp);
 router.post(
     "/verify-otp-and-create",
-
+    checkOperationalStatus,
     verifyOtpAndCreateQueue
 );
 router.get("/status/public", getPublicQueueStatus);
 router.get("/status/my-queue", getMyQueueStatus);
-router.post("/requeue-missed", verifyOtpAndCreateQueue, requeueMissed);
+router.post("/requeue-missed", checkOperationalStatus, requeueMissed);
 
 // --- Admin Routes (Untuk Staf Pengadilan) ---
 // Middleware authenticateToken dan authorizeRoles diterapkan
