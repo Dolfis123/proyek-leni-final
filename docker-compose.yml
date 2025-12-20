@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # 1. DATABASE KEDUA
-  db_app2:  # <-- Ganti nama service (jangan 'db' lagi)
+  frontend:  # <-- Ganti nama service (jangan 'db' lagi)
     image: mysql:8.0
     container_name: app2_db  # <-- Nama Container Unik
     restart: always
@@ -18,7 +18,7 @@ services:
       - "3307:3306" # <-- PENTING: Port Host diganti ke 3307
 
   # 2. BACKEND KEDUA
-  backend_app2: # <-- Ganti nama service
+  backend: # <-- Ganti nama service
     build: ./backend
     container_name: app2_api # <-- Nama Container Unik
     restart: always
