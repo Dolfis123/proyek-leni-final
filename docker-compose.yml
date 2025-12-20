@@ -1,36 +1,48 @@
 version: '3.8'
 
 services:
-  # 1. DATABASE KEDUA
-  db_app2:  # <-- Ganti nama service (jangan 'db' lagi)
+  # 1. DATABASE SERVICE
+  db_app2:
     image: mysql:8.0
-    container_name: app2_db  # <-- Nama Container Unik
+    container_name: app2_db
     restart: always
     environment:
-      MYSQL_DATABASE: db_app2_nama  # <-- Nama DB Baru
-      MYSQL_ROOT_PASSWORD: "dbleni123!"
+      MYSQL_DATABASE: db_app2_nama      # Nama DB sesuai target import tadi
+      MYSQL_ROOT_PASSWORD: "dbleni123!" # Password root
     volumes:
-      - mysql_data_app2:/var/lib/mysql # <-- Volume Baru
+      - mysql_data_app2:/var/lib/mysql
     networks:
       - app2-network
     command: --default-authentication-plugin=mysql_native_password
     ports:
-      - "3307:3306" # <-- PENTING: Port Host diganti ke 3307
+      - "3307:3306" # Port Host 3307
 
-  # 2. BACKEND KEDUA
-  backend_app2: # <-- Ganti nama service
+  # 2. BACKEND SERVICE (Node.js)
+  backend_app2:
     build: ./backend
-    container_name: app2_api # <-- Nama Container Unik
+    container_name: app2_api
     restart: always
     ports:
-      - "5001:5000" # <-- PENTING: Port Host diganti ke 5001
+      - "5001:5001" # Port Host 5001 -> Container 5001
     environment:
-      - PORT=5000 # Di dalam container tetap 5000
-      - DB_HOST=db_app2 # <-- Panggil nama service DB yang baru
-      - DB_USER=root
+      # Konfigurasi Server
+      - PORT=5001
+      - NODE_ENV=production
+      
+      # Konfigurasi Database
+      - DB_HOST=db_app2     # Service Name database
+      - DB_USER=root        
       - DB_PASS=dbleni123!
       - DB_NAME=db_app2_nama
-      - JWT_SECRET=RahasiaApp2Beda
+      
+      # Konfigurasi Keamanan & URL
+      - JWT_SECRET=leni12345678
+      - FRONTEND_URL=https://pengadilannegerimanokwari.pro
+      - OTP_EXPIRES_MINUTES=10
+      
+      # Konfigurasi Email (Gmail)
+      - EMAIL_USER=leniwariyanti672@gmail.com
+      - EMAIL_PASS=vfhf pdbm btkt bouy
     volumes:
       - ./backend_uploads:/app/public
     depends_on:
@@ -38,17 +50,17 @@ services:
     networks:
       - app2-network
 
-  # 3. FRONTEND KEDUA
-  frontend_app2: # <-- Ganti nama service
+  # 3. FRONTEND SERVICE (React)
+  frontend_app2:
     build:
       context: ./frontend
       args:
-        # Arahkan ke Domain App Kedua (HTTPS)
-        VITE_API_BASE_URL: "https://nama-apps-baru.bapperida.blog/api/v1"
-    container_name: app2_web # <-- Nama Container Unik
+        # KOREKSI: Hapus /v1 agar sesuai dengan server.js
+        VITE_API_BASE_URL: "https://pengadilannegerimanokwari.pro/api"
+    container_name: app2_web
     restart: always
     ports:
-      - "3001:80" # <-- PENTING: Port Host diganti ke 3001
+      - "3001:80"
     depends_on:
       - backend_app2
     networks:
@@ -59,4 +71,4 @@ networks:
     driver: bridge
 
 volumes:
-  mysql_data_app2: # <-- Nama volume dibedakan
+  mysql_data_app2:
