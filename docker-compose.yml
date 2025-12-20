@@ -7,7 +7,7 @@ services:
     container_name: app2_db  # <-- Nama Container Unik
     restart: always
     environment:
-      MYSQL_DATABASE: antrian_pn_manokwari  # <-- Nama DB Baru
+      MYSQL_DATABASE: db_app2_nama  # <-- Nama DB Baru
       MYSQL_ROOT_PASSWORD: "dbleni123!"
     volumes:
       - mysql_data_app2:/var/lib/mysql # <-- Volume Baru
@@ -18,7 +18,7 @@ services:
       - "3307:3306" # <-- PENTING: Port Host diganti ke 3307
 
   # 2. BACKEND KEDUA
-  backend: # <-- Ganti nama service
+  backend_app2: # <-- Ganti nama service
     build: ./backend
     container_name: app2_api # <-- Nama Container Unik
     restart: always
@@ -29,7 +29,7 @@ services:
       - DB_HOST=db_app2 # <-- Panggil nama service DB yang baru
       - DB_USER=root
       - DB_PASS=dbleni123!
-      - DB_NAME=antrian_pn_manokwari # <-- Nama DB Baru
+      - DB_NAME=db_app2_nama
       - JWT_SECRET=RahasiaApp2Beda
     volumes:
       - ./backend_uploads:/app/public
@@ -39,7 +39,7 @@ services:
       - app2-network
 
   # 3. FRONTEND KEDUA
-  frontend: # <-- Ganti nama service
+  frontend_app2: # <-- Ganti nama service
     build:
       context: ./frontend
       args:
