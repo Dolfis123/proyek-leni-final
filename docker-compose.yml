@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # 1. DATABASE KEDUA
-  frontend:  # <-- Ganti nama service (jangan 'db' lagi)
+  db_app2:  # <-- Ganti nama service (jangan 'db' lagi)
     image: mysql:8.0
     container_name: app2_db  # <-- Nama Container Unik
     restart: always
@@ -39,7 +39,7 @@ services:
       - app2-network
 
   # 3. FRONTEND KEDUA
-  frontend_app2: # <-- Ganti nama service
+  frontend: # <-- Ganti nama service
     build:
       context: ./frontend
       args:
