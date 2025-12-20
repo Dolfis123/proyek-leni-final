@@ -1,20 +1,29 @@
-# Gunakan versi Node.js yang ringan (Alpine)
-FROM node:18-alpine
-
-# Buat folder kerja di dalam container
+# --- Tahap 1: Build React ---
+FROM node:18-alpine as build-stage
 WORKDIR /app
-
-# Copy daftar dependency dulu (biar cache efisien)
 COPY package*.json ./
-
-# Install dependency
 RUN npm install
-
-# Copy seluruh sisa kode program
 COPY . .
 
-# Buka port 5000 (Internal Container)
-EXPOSE 5000
+# MENERIMA VARIABEL DARI DOCKER-COMPOSE
+# Agar axios tahu kemana harus menembak API
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
-# Jalankan server
-CMD ["npm", "start"]
+# Build React menjadi file statis (HTML/CSS/JS)
+RUN npm run build
+
+# --- Tahap 2: Serve dengan Nginx Kecil ---
+FROM nginx:stable-alpine as production-stage
+
+# Hapus config default bawaan
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy konfigurasi nginx internal kita (yang menangani React Router)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Ambil hasil build dari Tahap 1, taruh di folder web Nginx
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
