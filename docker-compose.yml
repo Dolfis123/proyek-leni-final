@@ -32,7 +32,7 @@ services:
       # Konfigurasi Database
       - DB_HOST=db_app2     # Service Name database
       - DB_USER=root        
-      - DB_PASS=dbleni123!
+      - DB_PASSWORD=dbleni123!
       - DB_NAME=db_app2_nama
       
       # Konfigurasi Keamanan & URL
