@@ -6,7 +6,7 @@ export default defineConfig({
     // ... (konfigurasi plugin lainnya, seperti plugins: [react()] jika Anda menggunakan React)
 
     server: {
-        port: 5175,
+        port: 3001,
         host: '0.0.0.0',
         allowedHosts: [
             'pengadilannegerimanokwari.pro', // Hapus / di akhir

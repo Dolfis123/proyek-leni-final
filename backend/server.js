@@ -27,7 +27,7 @@ const app = express();
 app.enable("trust proxy");
 
 const server = http.createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {

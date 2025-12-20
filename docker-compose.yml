@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # 1. DATABASE KEDUA
+  db_app2:  # <-- Ganti nama service (jangan 'db' lagi)
+    image: mysql:8.0
+    container_name: app2_db  # <-- Nama Container Unik
+    restart: always
+    environment:
+      MYSQL_DATABASE: antrian_pn_manokwari  # <-- Nama DB Baru
+      MYSQL_ROOT_PASSWORD: "dbleni123!"
+    volumes:
+      - mysql_data_app2:/var/lib/mysql # <-- Volume Baru
+    networks:
+      - app2-network
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3307:3306" # <-- PENTING: Port Host diganti ke 3307
+
+  # 2. BACKEND KEDUA
+  backend_app2: # <-- Ganti nama service
+    build: ./backend
+    container_name: app2_api # <-- Nama Container Unik
+    restart: always
+    ports:
+      - "5001:5000" # <-- PENTING: Port Host diganti ke 5001
+    environment:
+      - PORT=5000 # Di dalam container tetap 5000
+      - DB_HOST=db_app2 # <-- Panggil nama service DB yang baru
+      - DB_USER=root
+      - DB_PASS=dbleni123!
+      - DB_NAME=antrian_pn_manokwari # <-- Nama DB Baru
+      - JWT_SECRET=RahasiaApp2Beda
+    volumes:
+      - ./backend_uploads:/app/public
+    depends_on:
+      - db_app2
+    networks:
+      - app2-network
+
+  # 3. FRONTEND KEDUA
+  frontend_app2: # <-- Ganti nama service
+    build:
+      context: ./frontend
+      args:
+        # Arahkan ke Domain App Kedua (HTTPS)
+        VITE_API_BASE_URL: "https://nama-apps-baru.bapperida.blog/api/v1"
+    container_name: app2_web # <-- Nama Container Unik
+    restart: always
+    ports:
+      - "3001:80" # <-- PENTING: Port Host diganti ke 3001
+    depends_on:
+      - backend_app2
+    networks:
+      - app2-network
+
+networks:
+  app2-network:
+    driver: bridge
+
+volumes:
+  mysql_data_app2: # <-- Nama volume dibedakan
