@@ -144,8 +144,7 @@ const UserForm = ({ onSubmit, initialData = {}, isEditMode = false, loading = fa
                                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
                                 transition duration-150 ease-in-out
                                 ${fieldErrors.username ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
-                    required
-                    readOnly={isEditMode} 
+                    required={isEditMode} 
                 />
                 {fieldErrors.username && <p className="text-xs text-red-500 mt-1 absolute -bottom-4 left-0">{fieldErrors.username}</p>}
                 {isEditMode && <p className="text-xs text-gray-500 mt-1">Username tidak bisa diubah.</p>}
