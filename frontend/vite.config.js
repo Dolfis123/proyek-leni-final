@@ -9,8 +9,8 @@ export default defineConfig({
         port: 3001,
         host: '0.0.0.0',
         allowedHosts: [
-            'pengadilannegerimanokwari.pro', // Hapus / di akhir
-            'www.pengadilannegerimanokwari.pro',
+            'pengadilannegerimanokwari.cloud', // Hapus / di akhir
+            'www.pengadilannegerimanokwari.cloud',
             'localhost:5000/api' // Hapus / di akhir
         ],
     },

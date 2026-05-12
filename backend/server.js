@@ -45,7 +45,7 @@ queueController.setIoInstance(io);
 app.use(
     cors({
         origin: [
-            process.env.FRONTEND_URL || "https://pengadilannegerimanokwari.pro",
+            process.env.FRONTEND_URL || "https://pengadilannegerimanokwari.cloud",
             "http://localhost:5175",
         ],
         methods: ["GET", "POST", "PUT", "DELETE"],
