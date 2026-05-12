@@ -32,7 +32,7 @@ const PORT = process.env.PORT || 5001;
 // Konfigurasi CORS untuk Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:5175" || "http://localhost:5175",
+        origin: process.env.FRONTEND_URL || "http://localhost:5175",
         methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true,
     },
@@ -152,11 +152,44 @@ const setupDailyResetCron = async() => {
     }
 };
 
+// =====================================================================
+// --- FUNGSI BARU: Membuat Super Admin Default Otomatis ---
+// =====================================================================
+const createDefaultSuperAdmin = async () => {
+    try {
+        const User = db.User;
+        
+        // Cek apakah user dengan username 'admin' sudah ada
+        const adminExists = await User.findOne({ where: { username: 'admin' } });
+        
+        if (!adminExists) {
+            // Jika belum ada, buat baru
+            await User.create({
+                username: 'admin',
+                password_hash: 'admin123', // Hook Sequelize akan otomatis men-hash ini
+                full_name: 'Super Admin Sistem',
+                role: 'super_admin',
+                is_active: true
+            });
+            console.log("✅ Akun Super Admin default berhasil dibuat! (Username: admin, Pass: admin123)");
+        } else {
+            console.log("ℹ️ Akun Super Admin sudah ada. Melewati proses pembuatan.");
+        }
+    } catch (error) {
+        console.error("❌ Gagal membuat akun Super Admin default:", error);
+    }
+};
+// =====================================================================
+
 // Sinkronisasi database Sequelize dan memulai server
 db.sequelize
     .sync() // <-- AMAN
-    .then(() => {
+    .then(async () => { // <-- DITAMBAHKAN KATA 'async' DISINI
         console.log("Database synced successfully!");
+        
+        // <-- DITAMBAHKAN PEMANGGILAN FUNGSI DISINI
+        await createDefaultSuperAdmin(); 
+        
         setupDailyResetCron();
 
         server.listen(PORT, () => {
